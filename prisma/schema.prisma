@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Opportunity {
+  id              String   @id @default(cuid())
+  title           String
+  client          String?
+  stage           String   @default("TOR Collection")
+  deadline        String?
+  proposalType    String?
+  serviceCategory String?
+  strategicFit    String?
+  bidDecision     String   @default("Not Decided")
+  sector          String?
+  country         String?
+  collectedBy     String?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Expert {
+  id             String   @id @default(cuid())
+  name           String
+  title          String?
+  expertType     String?
+  specialization String?
+  country        String?
+  email          String?
+  phone          String?
+  yearsExp       String?
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Experience {
+  id          String   @id @default(cuid())
+  title       String
+  client      String?
+  country     String?
+  sector      String?
+  services    String?
+  startDate   String?
+  endDate     String?
+  value       String?
+  teamSize    String?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Partner {
+  id            String   @id @default(cuid())
+  name          String
+  type          String?
+  country       String?
+  email         String?
+  contactPerson String?
+  phone         String?
+  sector        String?
+  status        String   @default("Active")
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
