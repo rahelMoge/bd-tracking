@@ -8,65 +8,79 @@ datasource db {
 }
 
 model Opportunity {
-  id              String   @id @default(cuid())
-  title           String
-  client          String?
-  stage           String   @default("TOR Collection")
-  deadline        String?
-  proposalType    String?
-  serviceCategory String?
-  strategicFit    String?
-  bidDecision     String   @default("Not Decided")
-  sector          String?
-  country         String?
-  collectedBy     String?
-  notes           String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id              Int       @id @default(autoincrement())
+  title           String    @db.VarChar(255)
+  client          String?   @db.VarChar(255)
+  stage           String    @default("TOR Collection") @db.VarChar(50)
+  deadline        String?   @db.VarChar(20)
+  proposalType    String?   @db.VarChar(100)
+  serviceCategory String?   @db.VarChar(100)
+  strategicFit    String?   @db.VarChar(20)
+  bidDecision     String?   @db.VarChar(20)
+  sector          String?   @db.VarChar(100)
+  collectedBy     String?   @db.VarChar(100)
+  country         String?   @db.VarChar(100)
+  notes           String?   @db.Text
+  documentUrl     String?   @db.Text              // ← THIS IS THE FILE COLUMN
+  aiSummary       String?   @db.Text              // AI-generated document summary (JSON)
+  
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt   @map("updated_at")
+
+  @@map("opportunities")
 }
 
 model Expert {
-  id             String   @id @default(cuid())
-  name           String
-  title          String?
-  expertType     String?
-  specialization String?
-  country        String?
-  email          String?
-  phone          String?
-  yearsExp       String?
-  notes          String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id              Int       @id @default(autoincrement())
+  name            String    @db.VarChar(255)
+  title           String?   @db.VarChar(255)
+  expertType      String?   @db.VarChar(100)
+  specialization  String?   @db.VarChar(100)
+  country         String?   @db.VarChar(100)
+  email           String?   @db.VarChar(255)
+  phone           String?   @db.VarChar(50)
+  yearsExp        String?   @db.VarChar(20)
+  notes           String?   @db.Text
+  
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt   @map("updated_at")
+
+  @@map("experts")
 }
 
 model Experience {
-  id          String   @id @default(cuid())
-  title       String
-  client      String?
-  country     String?
-  sector      String?
-  services    String?
-  startDate   String?
-  endDate     String?
-  value       String?
-  teamSize    String?
-  description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              Int       @id @default(autoincrement())
+  title           String    @db.VarChar(255)
+  client          String?   @db.VarChar(255)
+  country         String?   @db.VarChar(100)
+  sector          String?   @db.VarChar(100)
+  services        String?   @db.VarChar(100)
+  startDate       String?   @db.VarChar(50)
+  endDate         String?   @db.VarChar(50)
+  value           String?   @db.VarChar(100)
+  teamSize        String?   @db.VarChar(50)
+  description     String?   @db.Text
+  
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt   @map("updated_at")
+
+  @@map("experiences")
 }
 
 model Partner {
-  id            String   @id @default(cuid())
-  name          String
-  type          String?
-  country       String?
-  email         String?
-  contactPerson String?
-  phone         String?
-  sector        String?
-  status        String   @default("Active")
-  notes         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id              Int       @id @default(autoincrement())
+  name            String    @db.VarChar(255)
+  type            String?   @db.VarChar(100)
+  country         String?   @db.VarChar(100)
+  email           String?   @db.VarChar(255)
+  contactPerson   String?   @db.VarChar(255)
+  phone           String?   @db.VarChar(50)
+  sector          String?   @db.VarChar(100)
+  status          String?   @db.VarChar(50)
+  notes           String?   @db.Text
+  
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt   @map("updated_at")
+
+  @@map("partners")
 }

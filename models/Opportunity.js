@@ -5,14 +5,14 @@ const OpportunitySchema = new mongoose.Schema({
   client: String,
   stage: {
     type: String,
-    enum: ['TOR Collection','Under Review','Qualification Review','Decision Pending','Bid Preparation','Submitted','Won','Lost'],
+    enum: ['TOR Collection', 'Under Review', 'Qualification Review', 'Decision Pending', 'Bid Preparation', 'Submitted', 'Won', 'Lost'],
     default: 'TOR Collection'
   },
   deadline: String,
   proposalType: String,
   serviceCategory: String,
-  strategicFit: { type: String, enum: ['High','Med','Low'] },
-  bidDecision: { type: String, enum: ['BID','NO-BID','Not Decided'], default: 'Not Decided' },
+  strategicFit: { type: String, enum: ['High', 'Med', 'Low'] },
+  bidDecision: { type: String, enum: ['BID', 'NO-BID', 'Not Decided'], default: 'Not Decided' },
   sector: String,
   country: String,
   collectedBy: String,

@@ -1,202 +1,109 @@
-import { useState, useEffect } from 'react'
-import axios from 'axios'
+import { useState } from 'react'
+import { PageHeader, Badge, SearchBar, Btn } from '../UI'
 
-const STAGES = ['TOR Collection', 'Under Review', 'Qualification Review', 'Decision Pending', 'Bid Preparation', 'Submitted', 'Won', 'Lost']
+const METRICS = [
+    { label: 'Open opportunities', value: 34, color: 'blue' },
+    { label: 'Active proposals', value: 12, color: 'purple' },
+    { label: 'Pending reviews', value: 7, color: 'yellow' },
+    { label: 'Clients engaged', value: 18, color: 'green' }
+]
+
+const HIGHLIGHTS = [
+    'Proposal win rate is holding at 68%',
+    'Next bid deadline is in 4 days',
+    '3 experts need CV refresh before submission',
+    'Review the new opportunity intake form' 
+]
 
 export default function Dashboard({ navigate }) {
-    const [opportunities, setOpportunities] = useState([])
-    const [loading, setLoading] = useState(true)
-
-    useEffect(() => {
-        axios.get('/api/opportunities').then(r => {
-            setOpportunities(r.data)
-            setLoading(false)
-        })
-    }, [])
-
-    const now = new Date()
-    const in30 = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
-    const upcoming = opportunities.filter(o =>
-        o.deadline && new Date(o.deadline) <= in30 && new Date(o.deadline) >= now
-    )
-
-    const stageCounts = STAGES.reduce((acc, s) => {
-        acc[s] = opportunities.filter(o => o.stage === s).length
-        return acc
-    }, {})
-
-    const serviceMix = opportunities.reduce((acc, o) => {
-        if (o.serviceCategory) acc[o.serviceCategory] = (acc[o.serviceCategory] || 0) + 1
-        return acc
-    }, {})
-
-    const bidCounts = {
-        BID: opportunities.filter(o => o.bidDecision === 'BID').length,
-        'NO-BID': opportunities.filter(o => o.bidDecision === 'NO-BID').length,
-        'Not Decided': opportunities.filter(o => o.bidDecision === 'Not Decided').length,
-    }
-
-    const fitCounts = {
-        High: opportunities.filter(o => o.strategicFit === 'High').length,
-        Med: opportunities.filter(o => o.strategicFit === 'Med').length,
-        Low: opportunities.filter(o => o.strategicFit === 'Low').length,
-    }
-
-    if (loading) return <LoadingScreen />
+    const [search, setSearch] = useState('')
 
     return (
-        <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-            {/* Header */}
-            <div style={{
-                padding: '18px 24px 14px',
-                borderBottom: '1px solid #2d3748',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexShrink: 0
-            }}>
-                <div>
-                    <div style={{ fontSize: 22, fontWeight: 600, color: '#e2e8f0' }}>Dashboard</div>
-                    <div style={{ fontSize: 12, color: '#718096' }}>Business Development Overview</div>
-                </div>
-                <button
-                    onClick={() => navigate('opportunities')}
-                    style={{
-                        background: '#3b5bdb', color: '#fff',
-                        border: 'none', borderRadius: 8,
-                        padding: '8px 16px', fontSize: 13,
-                        cursor: 'pointer', fontWeight: 500
-                    }}
-                >
-                    View All Opportunities →
-                </button>
-            </div>
+        <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%',
+            overflow: 'hidden',
+            color: '#e2e8f0'
+        }}>
+            <PageHeader
+                icon="📊"
+                title="Dashboard"
+                subtitle="High-level view of your BD pipeline"
+            >
+                <Btn onClick={() => navigate('opportunities')}>Go to Opportunities</Btn>
+            </PageHeader>
 
-            <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
-                {/* Upcoming Deadlines */}
-                <SectionLabel>📅 UPCOMING SUBMISSION DEADLINES (next 30 days)</SectionLabel>
-                <div style={{
-                    background: '#141720', border: '1px solid #2d3748',
-                    borderRadius: 8, padding: '12px 16px', marginBottom: 20
-                }}>
-                    {upcoming.length === 0
-                        ? <span style={{ color: '#4a5568', fontSize: 13 }}>No deadlines in the next 30 days.</span>
-                        : upcoming.map(o => (
-                            <div key={o.id} style={{
-                                display: 'flex', justifyContent: 'space-between',
-                                fontSize: 13, color: '#e2e8f0', padding: '4px 0',
-                                borderBottom: '1px solid #2d374844'
-                            }}>
-                                <span>{o.title}</span>
-                                <span style={{ color: '#fc8181' }}>{o.deadline}</span>
-                            </div>
-                        ))
-                    }
-                </div>
-
-                {/* Pipeline Stages */}
-                <SectionLabel>PIPELINE STAGES</SectionLabel>
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(4, 1fr)',
-                    gap: 10, marginBottom: 20
-                }}>
-                    {STAGES.map(s => (
-                        <div key={s} style={{
-                            background: '#141720', border: '1px solid #2d3748',
-                            borderRadius: 8, padding: 14
+            <div style={{ padding: 20, overflowY: 'auto' }}>
+                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 20 }}>
+                    {METRICS.map(metric => (
+                        <div key={metric.label} style={{
+                            flex: '1 1 220px',
+                            minWidth: 220,
+                            background: '#111827',
+                            border: '1px solid #2d3748',
+                            borderRadius: 16,
+                            padding: 20
                         }}>
-                            <div style={{ fontSize: 22, fontWeight: 600, color: '#e2e8f0' }}>
-                                {stageCounts[s] || 0}
-                            </div>
-                            <div style={{ fontSize: 11, color: '#718096', marginTop: 4 }}>{s}</div>
+                            <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 8 }}>{metric.label}</div>
+                            <div style={{ fontSize: 32, fontWeight: 700, color: '#fff' }}>{metric.value}</div>
+                            <Badge color={metric.color} style={{ marginTop: 12 }}>{metric.color}</Badge>
                         </div>
                     ))}
                 </div>
 
-                {/* Service Category Mix */}
-                <SectionLabel>🏷️ SERVICE CATEGORY MIX</SectionLabel>
-                <div style={{
-                    background: '#141720', border: '1px solid #2d3748',
-                    borderRadius: 8, padding: '12px 16px', marginBottom: 20
-                }}>
-                    {Object.keys(serviceMix).length === 0
-                        ? <span style={{ color: '#4a5568', fontSize: 13 }}>No data yet. Add opportunities with service categories.</span>
-                        : Object.entries(serviceMix).sort((a, b) => b[1] - a[1]).map(([k, v]) => (
-                            <div key={k} style={{
-                                display: 'flex', justifyContent: 'space-between',
-                                fontSize: 13, color: '#a0aec0', padding: '4px 0'
-                            }}>
-                                <span>{k}</span>
-                                <span style={{ color: '#e2e8f0', fontWeight: 500 }}>{v}</span>
-                            </div>
-                        ))
-                    }
-                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 16 }}>
+                    <div style={{
+                        background: '#111827',
+                        border: '1px solid #2d3748',
+                        borderRadius: 16,
+                        padding: 20,
+                        minHeight: 320
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+                            <div style={{ fontSize: 16, fontWeight: 600 }}>Opportunity Insights</div>
+                            <SearchBar
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
+                                placeholder="Search opportunities"
+                            />
+                        </div>
+                        <div style={{ display: 'grid', gap: 14 }}>
+                            {HIGHLIGHTS.filter(item => item.toLowerCase().includes(search.toLowerCase())).map(item => (
+                                <div key={item} style={{
+                                    padding: 14,
+                                    background: '#0f172a',
+                                    borderRadius: 12,
+                                    border: '1px solid #1f2937'
+                                }}>
+                                    {item}
+                                </div>
+                            ))}
+                            {!HIGHLIGHTS.some(item => item.toLowerCase().includes(search.toLowerCase())) && (
+                                <div style={{ color: '#94a3b8' }}>No highlights match your search.</div>
+                            )}
+                        </div>
+                    </div>
 
-                {/* Bottom Cards */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-                    <StatCard title="🎯 Bid Decisions" rows={[
-                        { icon: '✅', label: 'BID', val: bidCounts.BID, color: '#68d391' },
-                        { icon: '❌', label: 'NO-BID', val: bidCounts['NO-BID'], color: '#fc8181' },
-                        { icon: '⏳', label: 'Not Decided', val: bidCounts['Not Decided'], color: '#f6e05e' },
-                    ]} />
-                    <StatCard title="📈 Strategic Fit" rows={[
-                        { icon: '↗', label: 'High', val: fitCounts.High, color: '#68d391' },
-                        { icon: '📊', label: 'Med', val: fitCounts.Med, color: '#f6ad55' },
-                        { icon: '↘', label: 'Low', val: fitCounts.Low, color: '#fc8181' },
-                    ]} />
-                    <StatCard title="🗂️ Outcomes" rows={[
-                        { label: 'Total Opportunities', val: opportunities.length },
-                        { label: 'Submitted', val: stageCounts['Submitted'] || 0, color: '#7b9cff' },
-                        { label: 'Won', val: stageCounts['Won'] || 0, color: '#68d391' },
-                    ]} />
+                    <div style={{
+                        background: '#111827',
+                        border: '1px solid #2d3748',
+                        borderRadius: 16,
+                        padding: 20,
+                        minHeight: 320,
+                        display: 'flex',
+                        flexDirection: 'column'
+                    }}>
+                        <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 16 }}>Quick Actions</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flex: 1 }}>
+                            <Btn onClick={() => navigate('experts')} variant="secondary">Review Expert Database</Btn>
+                            <Btn onClick={() => navigate('pipeline')} variant="secondary">View Proposal Pipeline</Btn>
+                            <Btn onClick={() => navigate('partners')} variant="secondary">Exchange Partner Notes</Btn>
+                            <Btn onClick={() => navigate('analytics')} variant="secondary">Open Strategic Analytics</Btn>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-    )
-}
-
-function SectionLabel({ children }) {
-    return (
-        <div style={{
-            fontSize: 11, color: '#718096',
-            letterSpacing: '0.06em', textTransform: 'uppercase',
-            fontWeight: 600, marginBottom: 10
-        }}>
-            {children}
-        </div>
-    )
-}
-
-function StatCard({ title, rows }) {
-    return (
-        <div style={{
-            background: '#141720', border: '1px solid #2d3748',
-            borderRadius: 8, padding: 14
-        }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', marginBottom: 10 }}>{title}</div>
-            {rows.map((r, i) => (
-                <div key={i} style={{
-                    display: 'flex', justifyContent: 'space-between',
-                    fontSize: 12, color: '#a0aec0', padding: '3px 0'
-                }}>
-                    <span>{r.icon} {r.label}</span>
-                    <span style={{ color: r.color || '#e2e8f0', fontWeight: 500 }}>{r.val}</span>
-                </div>
-            ))}
-        </div>
-    )
-}
-
-function LoadingScreen() {
-    return (
-        <div style={{
-            flex: 1, display: 'flex',
-            alignItems: 'center', justifyContent: 'center',
-            color: '#718096', fontSize: 14
-        }}>
-            Loading...
         </div>
     )
 }
