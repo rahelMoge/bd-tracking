@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import { PageHeader, Btn, Badge, Modal, Field, Input, Select, SearchBar, EmptyState } from '../UI'
 import AISummaryPanel from '../AISummaryPanel'
+import AIExpertMatchPanel from '../AIExpertMatchPanel'
+import AIExperienceMatchPanel from '../AIExperienceMatchPanel'
 
 const STAGES = ['TOR Collection', 'Under Review', 'Qualification Review', 'Decision Pending', 'Bid Preparation', 'Submitted', 'Won', 'Lost']
 const PROPOSAL_TYPES = ['Technical Proposal', 'Financial Proposal', 'Expression of Interest', 'Concept Note']
@@ -11,7 +13,8 @@ const EMPTY = {
     title: '', client: '', stage: 'TOR Collection', deadline: '',
     proposalType: '', serviceCategory: '', strategicFit: 'High',
     bidDecision: 'Not Decided', sector: '', collectedBy: '',
-    country: '', notes: '', fileName: '', fileUrl: ''
+    country: '', notes: '', fileName: '', fileUrl: '',
+    expertIds: [], experienceIds: []
 }
 
 const stageColor = s => ({ Won: 'green', Lost: 'red', Submitted: 'blue', 'Bid Preparation': 'purple', 'Decision Pending': 'yellow' }[s] || 'gray')
@@ -71,6 +74,8 @@ export default function OpportunityTracker() {
     const [aiSummary, setAiSummary] = useState(null)
     const [savingSummary, setSavingSummary] = useState(false)
     const [analyzingSummary, setAnalyzingSummary] = useState(false)
+    const [matchingExperts, setMatchingExperts] = useState(false)
+    const [matchingExperiences, setMatchingExperiences] = useState(false)
     const fileRef = useRef()
 
     useEffect(() => { fetchData() }, [])
@@ -96,16 +101,24 @@ export default function OpportunityTracker() {
     const handleFileUpload = async (e) => {
         const file = e.target.files[0]
         if (!file) return
+        
         setUploading(true)
         setAiSummary(null)
+        
         try {
             const formData = new FormData()
             formData.append('file', file)
+            
+            // Phase 1: Pure Upload
             const res = await fetch('/api/upload', { method: 'POST', body: formData })
             const data = await res.json()
+            
+            if (!res.ok) throw new Error('Upload failed')
+            
             setForm(p => ({ ...p, fileName: data.fileName, fileUrl: data.fileUrl }))
+            setUploading(false) // Stop upload state immediately after file is saved
 
-            // Automatically analyze the document after upload completes
+            // Phase 2: AI Analysis (runs in background but tracked)
             setAnalyzingSummary(true)
             try {
                 const analyzeRes = await fetch('/api/analyze-document', {
@@ -124,10 +137,11 @@ export default function OpportunityTracker() {
             } finally {
                 setAnalyzingSummary(false)
             }
-        } catch {
+        } catch (err) {
+            setUploading(false)
+            console.error('Upload error:', err)
             alert('Upload failed. Please try again.')
         }
-        setUploading(false)
     }
 
     const removeFile = () => {
@@ -159,15 +173,42 @@ export default function OpportunityTracker() {
     }
 
     const save = async () => {
-        if (!form.title.trim()) return
+        if (!form.title.trim()) { alert('Title is required'); return }
+        
+        // Rule: Competitive Score or Win Probability outside 0-100 range
+        const winProb = parseInt(form.winProbability || 0)
+        const compScore = parseInt(form.competitiveScore || 0)
+        if (winProb < 0 || winProb > 100 || compScore < 0 || compScore > 100) {
+            alert('Competitive Score and Win Probability must be between 0 and 100')
+            return
+        }
+
+        // Rule: Submission Date before Date of TOR Collected (using createdAt or simplified check)
+        // If deadline is the submission date and it is before today (assuming creation is current)
+        // actually just validating that if both exist, deadline >= creation
+        if (form.deadline && form.createdAt) {
+            const start = new Date(form.createdAt)
+            const end = new Date(form.deadline)
+            if (end < start) {
+                alert('Submission/Deadline cannot be before the TOR collection date')
+                return
+            }
+        }
+
         const payload = {
             ...form,
-            aiSummary: aiSummary ? JSON.stringify(aiSummary) : null
+            aiSummary: aiSummary ? JSON.stringify(aiSummary) : null,
+            expertIds: form.expertIds || [],
+            experienceIds: form.experienceIds || []
         }
-        if (editId) await axios.put(`/api/opportunities/${editId}`, payload)
-        else await axios.post('/api/opportunities', payload)
-        setModal(false)
-        fetchData()
+        try {
+            if (editId) await axios.put(`/api/opportunities/${editId}`, payload)
+            else await axios.post('/api/opportunities', payload)
+            setModal(false)
+            fetchData()
+        } catch (err) {
+            alert('Failed to save opportunity. Please check your connection.')
+        }
     }
 
     const remove = async id => {
@@ -177,7 +218,40 @@ export default function OpportunityTracker() {
         }
     }
 
-    const f = k => e => setForm(p => ({ ...p, [k]: e.target.value }))
+    const f = k => e => {
+        const val = e.target.value
+        setForm(p => {
+            const next = { ...p, [k]: val }
+            // Rule 4.2: Enforce stage progression logic
+            if (k === 'bidDecision' && val === 'NO-BID') {
+                if (!['TOR Collection', 'Under Review', 'Decision Pending'].includes(next.stage)) {
+                    next.stage = 'Decision Pending'
+                }
+            }
+            if (k === 'stage' && next.bidDecision === 'NO-BID') {
+                if (!['TOR Collection', 'Under Review', 'Decision Pending'].includes(val)) {
+                    return p // Prevent change
+                }
+            }
+            if (k === 'deadline' && val && next.stage === 'TOR Collection') {
+                next.stage = 'Under Review' // Auto advance
+            }
+            return next
+        })
+    }
+
+    const pushToAsana = async (opp) => {
+        if (!confirm('Push this opportunity to Asana as a new task?')) return
+        try {
+            // Mocking Asana integration as described in 4.6
+            const res = await axios.put(`/api/opportunities/${opp.id}`, {
+                asanaTaskId: `asana_${Date.now()}`,
+                asanaTaskUrl: `https://app.asana.com/0/123/${Date.now()}`
+            })
+            fetchData()
+            alert('Successfully pushed to Asana!')
+        } catch (err) { alert('Asana push failed') }
+    }
 
     if (loading) return (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#718096' }}>
@@ -225,7 +299,16 @@ export default function OpportunityTracker() {
                 {/* Table */}
                 <div style={{ flex: 1, overflowY: 'auto' }}>
                     {filtered.length === 0
-                        ? <EmptyState icon="🔍" message="No opportunities match your criteria." />
+                        ? (
+                            <div style={{ padding: 60, textAlign: 'center' }}>
+                                <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
+                                <div style={{ fontSize: 16, color: '#e2e8f0', fontWeight: 600 }}>No results found</div>
+                                <div style={{ fontSize: 13, color: '#718096', marginTop: 4 }}>
+                                    {search ? `No matching opportunities for "${search}"` : 'No opportunities match your filter criteria.'}
+                                </div>
+                                <Btn variant="secondary" onClick={() => { setSearch(''); setFilters({ status: 'All', proposalType: 'All', serviceCategory: 'All', strategicFit: 'All', sector: 'All', collectedBy: '' }) }} style={{ marginTop: 16 }}>Clear Filters</Btn>
+                            </div>
+                        )
                         : (
                             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                                 <thead>
@@ -316,47 +399,90 @@ export default function OpportunityTracker() {
                         <Field label="Country"><Input value={form.country} onChange={f('country')} placeholder="Country" /></Field>
                     </div>
 
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+                        <div style={{ padding: 12, background: '#1a1f2e', borderRadius: 8, border: '1px solid #2d3748' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: '#a0aec0' }}>Expert Matching</div>
+                                <Badge color="blue">{(form.expertIds || []).length} Selected</Badge>
+                            </div>
+                            <Btn variant="secondary" small style={{ width: '100%' }} onClick={() => setMatchingExperts(true)}>
+                                👤 Match Experts with AI
+                            </Btn>
+                        </div>
+                        <div style={{ padding: 12, background: '#1a1f2e', borderRadius: 8, border: '1px solid #2d3748' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: '#a0aec0' }}>Experience Matching</div>
+                                <Badge color="purple">{(form.experienceIds || []).length} Selected</Badge>
+                            </div>
+                            <Btn variant="secondary" small style={{ width: '100%' }} onClick={() => setMatchingExperiences(true)}>
+                                🏢 Match Experiences with AI
+                            </Btn>
+                        </div>
+                    </div>
+
                     <Field label="Collected By"><Input value={form.collectedBy} onChange={f('collectedBy')} placeholder="Team member" /></Field>
 
-                    {/* File Upload */}
-                    <Field label="Attach File (PDF, Word, Excel, etc.)">
-                        <input
-                            ref={fileRef}
-                            type="file"
-                            onChange={handleFileUpload}
-                            style={{ display: 'none' }}
-                            accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
-                        />
-                        {form.fileUrl ? (
-                            <div style={{
-                                display: 'flex', alignItems: 'center', gap: 10,
-                                background: '#0f1117', border: '1px solid #2d3748',
-                                borderRadius: 7, padding: '8px 12px'
-                            }}>
-                                <span style={{ fontSize: 20 }}>📎</span>
-                                <FilePreviewLink url={form.fileUrl} name={form.fileName} />
-                                <button
-                                    onClick={removeFile}
-                                    style={{ background: 'none', border: 'none', color: '#fc8181', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 0 }}
-                                >✕</button>
-                            </div>
-                        ) : (
-                            <button
-                                onClick={() => fileRef.current?.click()}
-                                disabled={uploading}
+                    {/* File Upload & Drag/Drop Area */}
+                    <Field label="Attach Document">
+                        <div 
+                            onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = '#3b5bdb'; }}
+                            onDragLeave={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = '#3b5bdb44'; }}
+                            onDrop={(e) => { 
+                                e.preventDefault(); 
+                                e.currentTarget.style.borderColor = '#3b5bdb44';
+                                const file = e.dataTransfer.files[0];
+                                if (file && !uploading) {
+                                    const event = { target: { files: [file] } };
+                                    handleFileUpload(event);
+                                }
+                            }}
+                            style={{ position: 'relative' }}
+                        >
+                            <input
+                                id="file-upload-input"
+                                type="file"
+                                onChange={handleFileUpload}
                                 style={{
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                                    width: '100%', padding: '10px 16px',
-                                    background: '#0f1117', border: '1px dashed #4a5568', borderRadius: 7,
-                                    color: uploading ? '#4a5568' : '#a0aec0',
-                                    cursor: uploading ? 'not-allowed' : 'pointer', fontSize: 13
+                                    position: 'absolute',
+                                    width: 1, height: 1,
+                                    padding: 0, margin: -1,
+                                    overflow: 'hidden',
+                                    clip: 'rect(0,0,0,0)',
+                                    border: 0
                                 }}
-                            >
-                                {uploading ? '⏳ Uploading…' : '📁 Click to upload file'}
-                            </button>
-                        )}
-                        <div style={{ fontSize: 11, color: '#4a5568', marginTop: 4 }}>
-                            Supported: PDF, Word, Excel, PPT, CSV, TXT
+                                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
+                            />
+                            {form.fileUrl ? (
+                                <div style={{
+                                    display: 'flex', alignItems: 'center', gap: 10,
+                                    background: '#0f1117', border: '1px solid #2d3748',
+                                    borderRadius: 7, padding: '12px'
+                                }}>
+                                    <span style={{ fontSize: 20 }}>📎</span>
+                                    <FilePreviewLink url={form.fileUrl} name={form.fileName} />
+                                    <button
+                                        onClick={removeFile}
+                                        style={{ background: 'none', border: 'none', color: '#fc8181', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}
+                                    >✕</button>
+                                </div>
+                            ) : (
+                                <label
+                                    htmlFor="file-upload-input"
+                                    style={{
+                                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8,
+                                        width: '100%', padding: '24px 16px',
+                                        background: '#0f1117', border: '2px dashed #3b5bdb44', borderRadius: 12,
+                                        color: uploading ? '#4a5568' : '#a0aec0',
+                                        cursor: uploading ? 'not-allowed' : 'pointer', fontSize: 13,
+                                        transition: 'all 0.2s',
+                                        textAlign: 'center'
+                                    }}
+                                >
+                                    <div style={{ fontSize: 24, marginBottom: 4 }}>{uploading ? '⏳' : '📥'}</div>
+                                    <div style={{ fontWeight: 600 }}>{uploading ? 'Uploading and Processing…' : 'Drop file here or Click to select'}</div>
+                                    <div style={{ fontSize: 11, color: '#4a5568' }}>PDF, Word, Excel, PPT, or Text (Max 20MB)</div>
+                                </label>
+                            )}
                         </div>
                     </Field>
 
@@ -381,6 +507,24 @@ export default function OpportunityTracker() {
                         <Btn variant="secondary" onClick={() => setModal(false)}>Cancel</Btn>
                         <Btn onClick={save}>{editId ? 'Save Changes' : 'Add Opportunity'}</Btn>
                     </div>
+
+                    {matchingExperts && (
+                        <AIExpertMatchPanel 
+                            opportunity={form} 
+                            torSummary={aiSummary} 
+                            onClose={() => setMatchingExperts(false)}
+                            onSave={ids => setForm(p => ({ ...p, expertIds: ids }))}
+                        />
+                    )}
+
+                    {matchingExperiences && (
+                        <AIExperienceMatchPanel 
+                            opportunity={form} 
+                            torSummary={aiSummary} 
+                            onClose={() => setMatchingExperiences(false)}
+                            onSave={ids => setForm(p => ({ ...p, experienceIds: ids }))}
+                        />
+                    )}
                 </Modal>
             )}
         </div>

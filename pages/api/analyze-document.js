@@ -106,32 +106,59 @@ Return EXACT structure:
                     },
                 ];
 
-        const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-            {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    contents: [{ parts }],
-                    generationConfig: {
-                        temperature: 0.2,
-                        maxOutputTokens: 8192,
-                    },
-                }),
+        let response;
+        let data;
+        const maxRetries = 5;
+
+        for (let i = 0; i < maxRetries; i++) {
+            try {
+                response = await fetch(
+                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                            contents: [{ parts }],
+                            generationConfig: {
+                                temperature: 0.2,
+                                maxOutputTokens: 8192,
+                            },
+                        }),
+                    }
+                );
+
+                data = await response.json();
+                
+                if (response.ok) break;
+
+                const isTransient = response.status === 503 || response.status === 429 || 
+                                   data?.error?.message?.includes("high demand") ||
+                                   data?.error?.message?.includes("Service Unavailable");
+
+                if (isTransient && i < maxRetries - 1) {
+                    const delay = Math.pow(2, i) * 2000;
+                    console.log(`Gemini API busy (attempt ${i + 1}/${maxRetries}). Status ${response.status}. Retrying in ${delay}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    continue;
+                }
+
+                if (!response.ok) {
+                    return res.status(500).json({
+                        error: "Gemini API failed",
+                        details: data,
+                    });
+                }
+            } catch (err) {
+                if (i < maxRetries - 1) {
+                    const delay = Math.pow(2, i) * 2000;
+                    console.log(`Fetch error (attempt ${i + 1}/${maxRetries}). Retrying...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    continue;
+                }
+                throw err;
             }
-        );
-
-        const data = await response.json();
-
-        console.log("Gemini status:", response.status);
-
-        if (!response.ok) {
-            return res.status(500).json({
-                error: "Gemini API failed",
-                details: data,
-            });
         }
 
         const text =

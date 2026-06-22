@@ -39,6 +39,20 @@ export default async function handler(req, res) {
                 updates.documentUrl = body.documentUrl || body.fileUrl || null
             }
             if (body.aiSummary !== undefined) updates.aiSummary = body.aiSummary || null
+            if (body.expertIds !== undefined) updates.expertIds = body.expertIds || []
+            if (body.experienceIds !== undefined) updates.experienceIds = body.experienceIds || []
+            
+            // Checklist fields
+            if (body.expertIdentified !== undefined) updates.expertIdentified = body.expertIdentified
+            if (body.experienceSelected !== undefined) updates.experienceSelected = body.experienceSelected
+            if (body.techDrafted !== undefined) updates.techDrafted = body.techDrafted
+            if (body.financialPrepared !== undefined) updates.financialPrepared = body.financialPrepared
+            if (body.docsCompiled !== undefined) updates.docsCompiled = body.docsCompiled
+            if (body.submitted !== undefined) updates.submitted = body.submitted
+
+            // Asana fields
+            if (body.asanaTaskId !== undefined) updates.asanaTaskId = body.asanaTaskId || null
+            if (body.asanaTaskUrl !== undefined) updates.asanaTaskUrl = body.asanaTaskUrl || null
 
             // Perform update
             const updated = await prisma.opportunity.update({
