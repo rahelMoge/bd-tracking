@@ -61,7 +61,19 @@ export default async function handler(req, res) {
             count: expUsage[e.id] || 0
         })).sort((a, b) => b.count - a.count).slice(0, 10)
 
-        // 7. Source Analysis (assuming 'collectedBy' or similar represents source for now, 
+        // 7. Competitive Profile
+        const strengths = {}
+        const weaknesses = {}
+        opportunities.forEach(o => {
+            if (Array.isArray(o.strengths)) {
+                o.strengths.forEach(s => strengths[s] = (strengths[s] || 0) + 1)
+            }
+            if (Array.isArray(o.weaknesses)) {
+                o.weaknesses.forEach(w => weaknesses[w] = (weaknesses[w] || 0) + 1)
+            }
+        })
+
+        // 8. Source Analysis
         // or just grouping by client as a proxy if source field isn't explicit)
         const sources = {}
         opportunities.forEach(o => {
@@ -84,7 +96,9 @@ export default async function handler(req, res) {
                 types,
                 experts: expertStats,
                 experiences: experienceStats,
-                sources
+                sources,
+                strengths,
+                weaknesses
             }
         })
     } catch (err) {

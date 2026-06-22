@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
-import { PageHeader, Btn, Badge, Modal, Field, Input, Select, SearchBar, EmptyState } from '../UI'
+import { PageHeader, Btn, Badge, Modal, Field, Input, Select, SearchBar } from '../UI'
 import AISummaryPanel from '../AISummaryPanel'
 import AIExpertMatchPanel from '../AIExpertMatchPanel'
 import AIExperienceMatchPanel from '../AIExperienceMatchPanel'
+import CompetitiveAnalysisPanel from '../CompetitiveAnalysisPanel'
 
 const STAGES = ['TOR Collection', 'Under Review', 'Qualification Review', 'Decision Pending', 'Bid Preparation', 'Submitted', 'Won', 'Lost']
 const PROPOSAL_TYPES = ['Technical Proposal', 'Financial Proposal', 'Expression of Interest', 'Concept Note']
@@ -24,38 +25,20 @@ const bidColor = b => ({ BID: 'green', 'NO-BID': 'red' }[b] || 'yellow')
 function FileLink({ url, name }) {
     return (
         <a
-            href={url}
-            target="_blank"
-            rel="noreferrer"
-            title={name}
+            href={url} target="_blank" rel="noreferrer" title={name}
             style={{
-                display: 'inline-flex', alignItems: 'center', gap: 4,
-                fontSize: 11, color: '#7b9cff', textDecoration: 'none',
-                background: '#3b5bdb22', padding: '3px 8px', borderRadius: 4,
-                maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-            }
-            }
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                fontSize: 11, color: '#f8fafc', textDecoration: 'none',
+                background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)',
+                padding: '4px 10px', borderRadius: 8,
+                maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                transition: 'all 0.2s'
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)'}
         >
-            {'📎 ' + (name || 'File')}
-        </a >
-    )
-}
-
-function FilePreviewLink({ url, name }) {
-    return (
-        <a
-            href={url}
-            target="_blank"
-            rel="noreferrer"
-            style={{
-                flex: 1, color: '#7b9cff', fontSize: 13,
-                textDecoration: 'none', overflow: 'hidden',
-                textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-            }
-            }
-        >
-            {name}
-        </a >
+            {'📎 ' + (name || 'Document')}
+        </a>
     )
 }
 
@@ -76,11 +59,13 @@ export default function OpportunityTracker() {
     const [analyzingSummary, setAnalyzingSummary] = useState(false)
     const [matchingExperts, setMatchingExperts] = useState(false)
     const [matchingExperiences, setMatchingExperiences] = useState(false)
+    const [competitiveAnalysisId, setCompetitiveAnalysisId] = useState(null)
     const fileRef = useRef()
 
     useEffect(() => { fetchData() }, [])
 
     const fetchData = () => {
+        setLoading(true)
         axios.get('/api/opportunities').then(r => {
             setOpportunities(r.data)
             setLoading(false)
@@ -101,24 +86,16 @@ export default function OpportunityTracker() {
     const handleFileUpload = async (e) => {
         const file = e.target.files[0]
         if (!file) return
-        
         setUploading(true)
         setAiSummary(null)
-        
         try {
             const formData = new FormData()
             formData.append('file', file)
-            
-            // Phase 1: Pure Upload
             const res = await fetch('/api/upload', { method: 'POST', body: formData })
             const data = await res.json()
-            
             if (!res.ok) throw new Error('Upload failed')
-            
             setForm(p => ({ ...p, fileName: data.fileName, fileUrl: data.fileUrl }))
-            setUploading(false) // Stop upload state immediately after file is saved
-
-            // Phase 2: AI Analysis (runs in background but tracked)
+            setUploading(false)
             setAnalyzingSummary(true)
             try {
                 const analyzeRes = await fetch('/api/analyze-document', {
@@ -127,27 +104,13 @@ export default function OpportunityTracker() {
                     body: JSON.stringify({ fileUrl: data.fileUrl })
                 })
                 const analyzeData = await analyzeRes.json()
-                if (analyzeRes.ok) {
-                    setAiSummary(analyzeData.summary)
-                } else {
-                    console.error('Auto-analysis failed:', analyzeData.error)
-                }
-            } catch (err) {
-                console.error('Auto-analysis error:', err)
-            } finally {
-                setAnalyzingSummary(false)
-            }
+                if (analyzeRes.ok) setAiSummary(analyzeData.summary)
+            } catch (err) { console.error('AI Error:', err) }
+            finally { setAnalyzingSummary(false) }
         } catch (err) {
             setUploading(false)
-            console.error('Upload error:', err)
-            alert('Upload failed. Please try again.')
+            alert('Upload failed')
         }
-    }
-
-    const removeFile = () => {
-        setForm(p => ({ ...p, fileName: '', fileUrl: '' }))
-        setAiSummary(null)
-        if (fileRef.current) fileRef.current.value = ''
     }
 
     const openAdd = () => { setForm(EMPTY); setEditId(null); setAiSummary(null); setModal(true) }
@@ -157,44 +120,8 @@ export default function OpportunityTracker() {
         setModal(true)
     }
 
-    const handleSaveSummary = async () => {
-        if (!aiSummary) return
-        if (!editId) {
-            alert('Summary is staged! It will be permanently saved to the database when you click "Add Opportunity" at the bottom of the form.')
-            return
-        }
-        setSavingSummary(true)
-        try {
-            await axios.put(`/api/opportunities/${editId}`, { aiSummary: JSON.stringify(aiSummary) })
-            fetchData()
-            alert('AI Summary successfully saved to this opportunity record!')
-        } catch { alert('Failed to save summary') }
-        setSavingSummary(false)
-    }
-
     const save = async () => {
         if (!form.title.trim()) { alert('Title is required'); return }
-        
-        // Rule: Competitive Score or Win Probability outside 0-100 range
-        const winProb = parseInt(form.winProbability || 0)
-        const compScore = parseInt(form.competitiveScore || 0)
-        if (winProb < 0 || winProb > 100 || compScore < 0 || compScore > 100) {
-            alert('Competitive Score and Win Probability must be between 0 and 100')
-            return
-        }
-
-        // Rule: Submission Date before Date of TOR Collected (using createdAt or simplified check)
-        // If deadline is the submission date and it is before today (assuming creation is current)
-        // actually just validating that if both exist, deadline >= creation
-        if (form.deadline && form.createdAt) {
-            const start = new Date(form.createdAt)
-            const end = new Date(form.deadline)
-            if (end < start) {
-                alert('Submission/Deadline cannot be before the TOR collection date')
-                return
-            }
-        }
-
         const payload = {
             ...form,
             aiSummary: aiSummary ? JSON.stringify(aiSummary) : null,
@@ -206,9 +133,7 @@ export default function OpportunityTracker() {
             else await axios.post('/api/opportunities', payload)
             setModal(false)
             fetchData()
-        } catch (err) {
-            alert('Failed to save opportunity. Please check your connection.')
-        }
+        } catch (err) { alert('Save failed') }
     }
 
     const remove = async id => {
@@ -218,315 +143,248 @@ export default function OpportunityTracker() {
         }
     }
 
-    const f = k => e => {
-        const val = e.target.value
-        setForm(p => {
-            const next = { ...p, [k]: val }
-            // Rule 4.2: Enforce stage progression logic
-            if (k === 'bidDecision' && val === 'NO-BID') {
-                if (!['TOR Collection', 'Under Review', 'Decision Pending'].includes(next.stage)) {
-                    next.stage = 'Decision Pending'
-                }
-            }
-            if (k === 'stage' && next.bidDecision === 'NO-BID') {
-                if (!['TOR Collection', 'Under Review', 'Decision Pending'].includes(val)) {
-                    return p // Prevent change
-                }
-            }
-            if (k === 'deadline' && val && next.stage === 'TOR Collection') {
-                next.stage = 'Under Review' // Auto advance
-            }
-            return next
-        })
-    }
-
-    const pushToAsana = async (opp) => {
-        if (!confirm('Push this opportunity to Asana as a new task?')) return
-        try {
-            // Mocking Asana integration as described in 4.6
-            const res = await axios.put(`/api/opportunities/${opp.id}`, {
-                asanaTaskId: `asana_${Date.now()}`,
-                asanaTaskUrl: `https://app.asana.com/0/123/${Date.now()}`
-            })
-            fetchData()
-            alert('Successfully pushed to Asana!')
-        } catch (err) { alert('Asana push failed') }
-    }
+    const f = k => e => setForm(p => ({ ...p, [k]: e.target.value }))
 
     if (loading) return (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#718096' }}>
-            Loading...
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+            <div className="animate-fade" style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 24, marginBottom: 8 }}>📡</div>
+                <div style={{ fontSize: 13, color: '#94a3b8' }}>Syncing Ledger...</div>
+            </div>
         </div>
     )
 
     return (
-        <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-            <PageHeader icon="◉" title="Opportunity Tracker" subtitle={`${filtered.length} of ${opportunities.length} entries`}>
-                <SearchBar value={search} onChange={e => setSearch(e.target.value)} placeholder="Search title or client..." />
-                <Btn onClick={fetchData} variant="secondary">↻</Btn>
-                <Btn onClick={openAdd}>+ Add</Btn>
+        <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }} className="animate-fade">
+            <PageHeader icon="🎯" title="Opportunity Tracker" subtitle={`${filtered.length} active leads tracked`}>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                    <SearchBar value={search} onChange={e => setSearch(e.target.value)} placeholder="Search title or client..." />
+                    <Btn onClick={openAdd}>+ New Opportunity</Btn>
+                </div>
             </PageHeader>
 
             <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
                 {/* Filters */}
-                <div style={{ width: 190, background: '#0f1117', borderRight: '1px solid #2d3748', padding: '16px 12px', overflowY: 'auto', flexShrink: 0 }}>
+                <div style={{ 
+                    width: 220, 
+                    background: '#0f1218', 
+                    borderRight: '1px solid rgba(255,255,255,0.06)', 
+                    padding: '24px 16px', 
+                    overflowY: 'auto', 
+                    flexShrink: 0 
+                }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#475569', letterSpacing: '0.1em', marginBottom: 20 }}>FILTER INTELLIGENCE</div>
                     {[
-                        { label: 'Status', key: 'status', options: ['All', ...STAGES] },
-                        { label: 'Type of Proposal', key: 'proposalType', options: ['All', ...PROPOSAL_TYPES] },
-                        { label: 'Service Category', key: 'serviceCategory', options: ['All', ...SERVICE_CATS] },
+                        { label: 'Pipeline Stage', key: 'status', options: ['All', ...STAGES] },
+                        { label: 'Proposal Type', key: 'proposalType', options: ['All', ...PROPOSAL_TYPES] },
                         { label: 'Strategic Fit', key: 'strategicFit', options: ['All', 'High', 'Med', 'Low'] },
-                        { label: 'Sector', key: 'sector', options: ['All', ...SECTORS] },
+                        { label: 'Sector Focus', key: 'sector', options: ['All', ...SECTORS] },
                     ].map(({ label, key, options }) => (
-                        <div key={key} style={{ marginBottom: 16 }}>
-                            <div style={{ fontSize: 12, color: '#a0aec0', marginBottom: 6, fontWeight: 500 }}>{label}</div>
+                        <div key={key} style={{ marginBottom: 20 }}>
+                            <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8, fontWeight: 600 }}>{label}</div>
                             <Select value={filters[key]} onChange={e => setFilters(p => ({ ...p, [key]: e.target.value }))} style={{ width: '100%' }}>
                                 {options.map(o => <option key={o}>{o}</option>)}
                             </Select>
                         </div>
                     ))}
-                    <div style={{ marginBottom: 16 }}>
-                        <div style={{ fontSize: 12, color: '#a0aec0', marginBottom: 6, fontWeight: 500 }}>Collected By</div>
-                        <input
-                            value={filters.collectedBy}
-                            onChange={e => setFilters(p => ({ ...p, collectedBy: e.target.value }))}
-                            placeholder="Type to filter..."
-                            style={{ width: '100%', background: '#141720', border: '1px solid #2d3748', borderRadius: 7, padding: '7px 10px', color: '#e2e8f0', fontSize: 12, outline: 'none', boxSizing: 'border-box' }}
-                        />
-                    </div>
+                    <Btn variant="secondary" small style={{ width: '100%', marginTop: 12 }} onClick={() => setFilters({ status: 'All', proposalType: 'All', strategicFit: 'All', sector: 'All', collectedBy: '' })}>Reset Filters</Btn>
                 </div>
 
                 {/* Table */}
-                <div style={{ flex: 1, overflowY: 'auto' }}>
-                    {filtered.length === 0
-                        ? (
-                            <div style={{ padding: 60, textAlign: 'center' }}>
-                                <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
-                                <div style={{ fontSize: 16, color: '#e2e8f0', fontWeight: 600 }}>No results found</div>
-                                <div style={{ fontSize: 13, color: '#718096', marginTop: 4 }}>
-                                    {search ? `No matching opportunities for "${search}"` : 'No opportunities match your filter criteria.'}
-                                </div>
-                                <Btn variant="secondary" onClick={() => { setSearch(''); setFilters({ status: 'All', proposalType: 'All', serviceCategory: 'All', strategicFit: 'All', sector: 'All', collectedBy: '' }) }} style={{ marginTop: 16 }}>Clear Filters</Btn>
-                            </div>
-                        )
-                        : (
-                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                                <thead>
-                                    <tr style={{ background: '#141720', borderBottom: '1px solid #2d3748' }}>
-                                        {['Title', 'Client', 'Stage', 'Deadline', 'Type', 'Service', 'Fit', 'Bid', 'Sector', 'File', ''].map(h => (
-                                            <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, fontSize: 11, color: '#718096', whiteSpace: 'nowrap' }}>{h}</th>
-                                        ))}
+                <div style={{ flex: 1, overflowY: 'auto', padding: '0 0 40px 0' }}>
+                    {filtered.length === 0 ? (
+                        <div style={{ padding: 100, textAlign: 'center' }}>
+                            <div style={{ fontSize: 44, marginBottom: 16 }}>🔍</div>
+                            <div style={{ fontSize: 18, fontWeight: 700, color: '#f8fafc' }}>No matches found</div>
+                            <div style={{ fontSize: 14, color: '#64748b', marginTop: 8 }}>Try adjusting your filters or search terms.</div>
+                        </div>
+                    ) : (
+                        <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: 13 }}>
+                            <thead>
+                                <tr style={{ position: 'sticky', top: 0, zIndex: 10 }}>
+                                    <th style={{ padding: '16px 20px', background: '#0a0c10', textAlign: 'left', fontWeight: 700, fontSize: 11, color: '#475569', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>TITLE</th>
+                                    <th style={{ padding: '16px 20px', background: '#0a0c10', textAlign: 'left', fontWeight: 700, fontSize: 11, color: '#475569', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>CLIENT</th>
+                                    <th style={{ padding: '16px 20px', background: '#0a0c10', textAlign: 'left', fontWeight: 700, fontSize: 11, color: '#475569', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>STAGE</th>
+                                    <th style={{ padding: '16px 20px', background: '#0a0c10', textAlign: 'left', fontWeight: 700, fontSize: 11, color: '#475569', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>DEADLINE</th>
+                                    <th style={{ padding: '16px 20px', background: '#0a0c10', textAlign: 'left', fontWeight: 700, fontSize: 11, color: '#475569', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>FIT</th>
+                                    <th style={{ padding: '16px 20px', background: '#0a0c10', textAlign: 'left', fontWeight: 700, fontSize: 11, color: '#475569', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>BID</th>
+                                    <th style={{ padding: '16px 20px', background: '#0a0c10', textAlign: 'left', fontWeight: 700, fontSize: 11, color: '#475569', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>DOCUMENT</th>
+                                    <th style={{ padding: '16px 20px', background: '#0a0c10', borderBottom: '1px solid rgba(255,255,255,0.06)' }}></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filtered.map((o, i) => (
+                                    <tr 
+                                        key={o.id} 
+                                        style={{ transition: 'all 0.2s', animationDelay: `${i * 0.02}s` }}
+                                        className="table-row animate-fade"
+                                    >
+                                        <td style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                            <div style={{ fontWeight: 700, color: '#f1f5f9' }}>{o.title}</div>
+                                            <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>{o.sector || 'Uncategorized'}</div>
+                                        </td>
+                                        <td style={{ padding: '16px 20px', color: '#94a3b8', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>{o.client}</td>
+                                        <td style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}><Badge color={stageColor(o.stage)}>{o.stage}</Badge></td>
+                                        <td style={{ padding: '16px 20px', color: o.deadline ? '#f87171' : '#475569', fontWeight: 600, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>{o.deadline || '—'}</td>
+                                        <td style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}><Badge color={fitColor(o.strategicFit)}>{o.strategicFit}</Badge></td>
+                                        <td style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}><Badge color={bidColor(o.bidDecision)}>{o.bidDecision}</Badge></td>
+                                        <td style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                            {o.fileUrl ? <FileLink url={o.fileUrl} name={o.fileName} /> : <span style={{ color: '#334155' }}>None</span>}
+                                        </td>
+                                        <td style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.04)', textAlign: 'right' }}>
+                                            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                                                <button onClick={() => openEdit(o)} style={{ background: 'none', border: 'none', color: '#3b82f6', fontWeight: 600, cursor: 'pointer', fontSize: 12 }}>Edit</button>
+                                                <button onClick={() => setCompetitiveAnalysisId(o.id)} style={{ background: 'none', border: 'none', color: '#f59e0b', fontWeight: 600, cursor: 'pointer', fontSize: 12 }}>Intel</button>
+                                                <button onClick={() => remove(o.id)} style={{ background: 'none', border: 'none', color: '#ef4444', fontWeight: 600, cursor: 'pointer', fontSize: 12 }}>Delete</button>
+                                            </div>
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody>
-                                    {filtered.map(o => (
-                                        <tr
-                                            key={o.id}
-                                            style={{ borderBottom: '1px solid #2d374844' }}
-                                            onMouseEnter={e => e.currentTarget.style.background = '#141720'}
-                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                                        >
-                                            <td style={{ padding: '10px 12px', color: '#e2e8f0', fontWeight: 500, maxWidth: 160 }}>{o.title}</td>
-                                            <td style={{ padding: '10px 12px', color: '#a0aec0' }}>{o.client}</td>
-                                            <td style={{ padding: '10px 12px' }}><Badge color={stageColor(o.stage)}>{o.stage}</Badge></td>
-                                            <td style={{ padding: '10px 12px', color: o.deadline ? '#fc8181' : '#4a5568' }}>{o.deadline || '—'}</td>
-                                            <td style={{ padding: '10px 12px', color: '#a0aec0' }}>{o.proposalType || '—'}</td>
-                                            <td style={{ padding: '10px 12px', color: '#a0aec0' }}>{o.serviceCategory || '—'}</td>
-                                            <td style={{ padding: '10px 12px' }}>{o.strategicFit && <Badge color={fitColor(o.strategicFit)}>{o.strategicFit}</Badge>}</td>
-                                            <td style={{ padding: '10px 12px' }}>{o.bidDecision && <Badge color={bidColor(o.bidDecision)}>{o.bidDecision}</Badge>}</td>
-                                            <td style={{ padding: '10px 12px', color: '#a0aec0' }}>{o.sector || '—'}</td>
-
-                                            {/* File cell */}
-                                            <td style={{ padding: '10px 12px' }}>
-                                                {o.fileUrl
-                                                    ? <FileLink url={o.fileUrl} name={o.fileName} />
-                                                    : <span style={{ color: '#4a5568', fontSize: 11 }}>—</span>
-                                                }
-                                            </td>
-
-                                            <td style={{ padding: '10px 12px' }}>
-                                                <span onClick={() => openEdit(o)} style={{ cursor: 'pointer', marginRight: 8 }}>✏️</span>
-                                                <span onClick={() => remove(o.id)} style={{ cursor: 'pointer' }}>🗑️</span>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        )
-                    }
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
                 </div>
             </div>
 
-            {/* Modal */}
+            {/* Modal & Overlays */}
             {modal && (
-                <Modal title={editId ? 'Edit Opportunity' : 'Add Opportunity'} onClose={() => setModal(false)}>
-
-                    <Field label="Title *"><Input value={form.title} onChange={f('title')} placeholder="Opportunity title" /></Field>
-                    <Field label="Client"><Input value={form.client} onChange={f('client')} placeholder="Client / Donor" /></Field>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                        <Field label="Stage">
-                            <Select value={form.stage} onChange={f('stage')} style={{ width: '100%' }}>
-                                {STAGES.map(s => <option key={s}>{s}</option>)}
-                            </Select>
-                        </Field>
-                        <Field label="Deadline"><Input type="date" value={form.deadline} onChange={f('deadline')} /></Field>
-                        <Field label="Proposal Type">
-                            <Select value={form.proposalType} onChange={f('proposalType')} style={{ width: '100%' }}>
-                                <option value="">—</option>{PROPOSAL_TYPES.map(s => <option key={s}>{s}</option>)}
-                            </Select>
-                        </Field>
-                        <Field label="Service Category">
-                            <Select value={form.serviceCategory} onChange={f('serviceCategory')} style={{ width: '100%' }}>
-                                <option value="">—</option>{SERVICE_CATS.map(s => <option key={s}>{s}</option>)}
-                            </Select>
-                        </Field>
-                        <Field label="Strategic Fit">
-                            <Select value={form.strategicFit} onChange={f('strategicFit')} style={{ width: '100%' }}>
-                                <option>High</option><option>Med</option><option>Low</option>
-                            </Select>
-                        </Field>
-                        <Field label="Bid Decision">
-                            <Select value={form.bidDecision} onChange={f('bidDecision')} style={{ width: '100%' }}>
-                                <option>Not Decided</option><option>BID</option><option>NO-BID</option>
-                            </Select>
-                        </Field>
-                        <Field label="Sector">
-                            <Select value={form.sector} onChange={f('sector')} style={{ width: '100%' }}>
-                                <option value="">—</option>{SECTORS.map(s => <option key={s}>{s}</option>)}
-                            </Select>
-                        </Field>
-                        <Field label="Country"><Input value={form.country} onChange={f('country')} placeholder="Country" /></Field>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-                        <div style={{ padding: 12, background: '#1a1f2e', borderRadius: 8, border: '1px solid #2d3748' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                                <div style={{ fontSize: 12, fontWeight: 600, color: '#a0aec0' }}>Expert Matching</div>
-                                <Badge color="blue">{(form.expertIds || []).length} Selected</Badge>
+                <Modal title={editId ? 'Refine Strategy' : 'Initialize Opportunity'} onClose={() => setModal(false)} width={800}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                            <Field label="Title / Objective *"><Input value={form.title} onChange={f('title')} placeholder="Enter proposal title..." /></Field>
+                            <Field label="Target Client"><Input value={form.client} onChange={f('client')} placeholder="e.g. World Bank, UNDP" /></Field>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                                <Field label="Current Pipeline Stage">
+                                    <Select value={form.stage} onChange={f('stage')}>
+                                        {STAGES.map(s => <option key={s}>{s}</option>)}
+                                    </Select>
+                                </Field>
+                                <Field label="Strategic Decision">
+                                    <Select value={form.bidDecision} onChange={f('bidDecision')}>
+                                        <option>Not Decided</option><option>BID</option><option>NO-BID</option>
+                                    </Select>
+                                </Field>
                             </div>
-                            <Btn variant="secondary" small style={{ width: '100%' }} onClick={() => setMatchingExperts(true)}>
-                                👤 Match Experts with AI
-                            </Btn>
                         </div>
-                        <div style={{ padding: 12, background: '#1a1f2e', borderRadius: 8, border: '1px solid #2d3748' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                                <div style={{ fontSize: 12, fontWeight: 600, color: '#a0aec0' }}>Experience Matching</div>
-                                <Badge color="purple">{(form.experienceIds || []).length} Selected</Badge>
-                            </div>
-                            <Btn variant="secondary" small style={{ width: '100%' }} onClick={() => setMatchingExperiences(true)}>
-                                🏢 Match Experiences with AI
-                            </Btn>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                                <Field label="Submission Deadline"><Input type="date" value={form.deadline} onChange={f('deadline')} /></Field>
+                                <Field label="Strategic Fit">
+                                    <Select value={form.strategicFit} onChange={f('strategicFit')}>
+                                        <option>High</option><option>Med</option><option>Low</option>
+                                    </Select>
+                                </Field>
+                             </div>
+                             <Field label="Sector Primary Focus">
+                                <Select value={form.sector} onChange={f('sector')}>
+                                    <option value="">Select Sector...</option>
+                                    {SECTORS.map(s => <option key={s}>{s}</option>)}
+                                </Select>
+                             </Field>
+                             <Field label="Responsible Lead"><Input value={form.collectedBy} onChange={f('collectedBy')} placeholder="BD Lead Name" /></Field>
                         </div>
                     </div>
 
-                    <Field label="Collected By"><Input value={form.collectedBy} onChange={f('collectedBy')} placeholder="Team member" /></Field>
+                    <div style={{ margin: '24px 0', padding: 20, background: 'rgba(255,255,255,0.02)', borderRadius: 16, border: '1px solid rgba(255,255,255,0.04)' }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 16, letterSpacing: '0.05em' }}>INTELLIGENT RESOURCE MATCHING</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                            <button onClick={() => setMatchingExperts(true)} style={{ padding: 16, background: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.2)', borderRadius: 12, color: '#3b82f6', fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                                👤 {(form.expertIds || []).length > 0 ? `${(form.expertIds || []).length} Experts Selected` : 'Match Expert Team'}
+                            </button>
+                            <button onClick={() => setMatchingExperiences(true)} style={{ padding: 16, background: 'rgba(99, 102, 241, 0.05)', border: '1px solid rgba(99, 102, 241, 0.2)', borderRadius: 12, color: '#6366f1', fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                                📖 {(form.experienceIds || []).length > 0 ? `${(form.experienceIds || []).length} References Selected` : 'Match Firm Experience'}
+                            </button>
+                        </div>
+                    </div>
 
-                    {/* File Upload & Drag/Drop Area */}
-                    <Field label="Attach Document">
+                    <div style={{ margin: '24px 0' }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 12, letterSpacing: '0.05em' }}>DOCUMENT INTELLIGENCE</div>
                         <div 
-                            onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = '#3b5bdb'; }}
-                            onDragLeave={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = '#3b5bdb44'; }}
+                            onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = '#3b82f6'; e.currentTarget.style.background = 'rgba(59, 130, 246, 0.03)'; }}
+                            onDragLeave={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; }}
                             onDrop={(e) => { 
                                 e.preventDefault(); 
-                                e.currentTarget.style.borderColor = '#3b5bdb44';
+                                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
                                 const file = e.dataTransfer.files[0];
                                 if (file && !uploading) {
                                     const event = { target: { files: [file] } };
                                     handleFileUpload(event);
                                 }
                             }}
-                            style={{ position: 'relative' }}
+                            style={{ position: 'relative', border: '2px dashed rgba(255,255,255,0.08)', borderRadius: 16, background: 'rgba(255,255,255,0.01)', transition: 'all 0.2s' }}
                         >
                             <input
-                                id="file-upload-input"
-                                type="file"
-                                onChange={handleFileUpload}
-                                style={{
-                                    position: 'absolute',
-                                    width: 1, height: 1,
-                                    padding: 0, margin: -1,
-                                    overflow: 'hidden',
-                                    clip: 'rect(0,0,0,0)',
-                                    border: 0
-                                }}
-                                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
+                                id="file-upload-input" type="file" onChange={handleFileUpload}
+                                style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', border: 0 }}
+                                accept=".pdf,.doc,.docx,.txt"
                             />
                             {form.fileUrl ? (
-                                <div style={{
-                                    display: 'flex', alignItems: 'center', gap: 10,
-                                    background: '#0f1117', border: '1px solid #2d3748',
-                                    borderRadius: 7, padding: '12px'
-                                }}>
-                                    <span style={{ fontSize: 20 }}>📎</span>
-                                    <FilePreviewLink url={form.fileUrl} name={form.fileName} />
-                                    <button
-                                        onClick={removeFile}
-                                        style={{ background: 'none', border: 'none', color: '#fc8181', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}
-                                    >✕</button>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '20px' }}>
+                                    <div style={{ width: 44, height: 44, background: 'rgba(59, 130, 246, 0.1)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>📎</div>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ fontSize: 14, fontWeight: 700, color: '#f1f5f9', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{form.fileName}</div>
+                                        <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>TOR Document Attached</div>
+                                    </div>
+                                    <button onClick={() => setForm(p => ({ ...p, fileName: '', fileUrl: '' }))} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 18 }}>✕</button>
                                 </div>
                             ) : (
-                                <label
-                                    htmlFor="file-upload-input"
-                                    style={{
-                                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8,
-                                        width: '100%', padding: '24px 16px',
-                                        background: '#0f1117', border: '2px dashed #3b5bdb44', borderRadius: 12,
-                                        color: uploading ? '#4a5568' : '#a0aec0',
-                                        cursor: uploading ? 'not-allowed' : 'pointer', fontSize: 13,
-                                        transition: 'all 0.2s',
-                                        textAlign: 'center'
-                                    }}
-                                >
-                                    <div style={{ fontSize: 24, marginBottom: 4 }}>{uploading ? '⏳' : '📥'}</div>
-                                    <div style={{ fontWeight: 600 }}>{uploading ? 'Uploading and Processing…' : 'Drop file here or Click to select'}</div>
-                                    <div style={{ fontSize: 11, color: '#4a5568' }}>PDF, Word, Excel, PPT, or Text (Max 20MB)</div>
+                                <label htmlFor="file-upload-input" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, width: '100%', padding: '40px 20px', cursor: uploading ? 'not-allowed' : 'pointer', textAlign: 'center' }}>
+                                    <div style={{ fontSize: 32 }}>{uploading ? '⏳' : '📥'}</div>
+                                    <div style={{ fontWeight: 700, color: '#f1f5f9' }}>{uploading ? 'Processing Document...' : 'Drop TOR here or click to browse'}</div>
+                                    <div style={{ fontSize: 12, color: '#64748b' }}>AI will analyze scope, requirements, and deadlines</div>
                                 </label>
                             )}
                         </div>
-                    </Field>
+                    </div>
 
-                    {/* AI Summary Panel */}
                     <AISummaryPanel
                         fileUrl={form.fileUrl}
                         summary={aiSummary}
                         onSummaryGenerated={setAiSummary}
-                        onSaveSummary={handleSaveSummary}
-                        saving={savingSummary}
+                        onSaveSummary={() => alert('Summary staged. Click "Initialize Record" to save.')}
+                        saving={false}
                         analyzing={analyzingSummary}
                     />
 
-                    <Field label="Notes">
-                        <textarea
-                            value={form.notes} onChange={f('notes')} placeholder="Notes..."
-                            style={{ width: '100%', background: '#0f1117', border: '1px solid #2d3748', borderRadius: 7, padding: '8px 10px', color: '#e2e8f0', fontSize: 13, resize: 'vertical', minHeight: 70, outline: 'none', boxSizing: 'border-box' }}
-                        />
-                    </Field>
+                    <div style={{ marginBottom: 24 }}>
+                        <Field label="Strategic Notes"><textarea value={form.notes} onChange={f('notes')} style={{ width: '100%', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, color: '#f1f5f9', padding: 12, fontSize: 13, minHeight: 80, outline: 'none' }} placeholder="Add context, remarks or specific instructions..." /></Field>
+                    </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 12 }}>
                         <Btn variant="secondary" onClick={() => setModal(false)}>Cancel</Btn>
-                        <Btn onClick={save}>{editId ? 'Save Changes' : 'Add Opportunity'}</Btn>
+                        <Btn onClick={save}>{editId ? 'Commit Changes' : 'Initialize Record'}</Btn>
                     </div>
 
                     {matchingExperts && (
                         <AIExpertMatchPanel 
-                            opportunity={form} 
-                            torSummary={aiSummary} 
+                            opportunity={form} torSummary={aiSummary} 
                             onClose={() => setMatchingExperts(false)}
                             onSave={ids => setForm(p => ({ ...p, expertIds: ids }))}
                         />
                     )}
-
                     {matchingExperiences && (
                         <AIExperienceMatchPanel 
-                            opportunity={form} 
-                            torSummary={aiSummary} 
+                            opportunity={form} torSummary={aiSummary} 
                             onClose={() => setMatchingExperiences(false)}
                             onSave={ids => setForm(p => ({ ...p, experienceIds: ids }))}
                         />
                     )}
+                    {competitiveAnalysisId && (
+                        <CompetitiveAnalysisPanel 
+                            opportunity={opportunities.find(o => o.id === competitiveAnalysisId)}
+                            onClose={() => setCompetitiveAnalysisId(null)}
+                            onSave={handleSaveCompetitive}
+                        />
+                    )}
                 </Modal>
             )}
+
+            <style jsx>{`
+                .table-row:hover {
+                    background: rgba(255,255,255,0.02) !important;
+                }
+            `}</style>
         </div>
     )
 }

@@ -54,6 +54,15 @@ export default async function handler(req, res) {
             if (body.asanaTaskId !== undefined) updates.asanaTaskId = body.asanaTaskId || null
             if (body.asanaTaskUrl !== undefined) updates.asanaTaskUrl = body.asanaTaskUrl || null
 
+            // Competitive Analysis fields
+            if (body.competitiveScore !== undefined) updates.competitiveScore = body.competitiveScore
+            if (body.winProbability !== undefined) updates.winProbability = body.winProbability
+            if (body.knownCompetitors !== undefined) updates.knownCompetitors = body.knownCompetitors || null
+            if (body.strengths !== undefined) updates.strengths = body.strengths || []
+            if (body.weaknesses !== undefined) updates.weaknesses = body.weaknesses || []
+            if (body.whyBid !== undefined) updates.whyBid = body.whyBid || null
+            if (body.whyNotBid !== undefined) updates.whyNotBid = body.whyNotBid || null
+
             // Perform update
             const updated = await prisma.opportunity.update({
                 where: { id: numId },

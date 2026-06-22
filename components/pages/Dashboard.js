@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
-import { PageHeader, Badge, SearchBar, Btn } from '../UI'
+import { PageHeader, Badge, Btn } from '../UI'
 
 export default function Dashboard({ navigate }) {
     const [stats, setStats] = useState({
@@ -15,7 +15,6 @@ export default function Dashboard({ navigate }) {
     })
     const [stages, setStages] = useState([])
     const [loading, setLoading] = useState(true)
-    const [search, setSearch] = useState('')
 
     useEffect(() => {
         fetchStats()
@@ -36,26 +35,34 @@ export default function Dashboard({ navigate }) {
     }
 
     const metrics = [
-        { label: 'Total Opportunities', value: stats.opportunities, color: 'blue', icon: '💼' },
-        { label: 'Expert Database', value: stats.experts, color: 'green', icon: '👤' },
-        { label: 'Firm Experiences', value: stats.experiences, color: 'purple', icon: '📜' },
-        { label: 'Global Partners', value: stats.partners, color: 'yellow', icon: '🤝' }
+        { label: 'Pipeline Ops', value: stats.opportunities, color: 'blue', icon: '💼', trend: '+12% this month' },
+        { label: 'Expert Network', value: stats.experts, color: 'green', icon: '👤', trend: 'Global database' },
+        { label: 'Track Record', value: stats.experiences, color: 'purple', icon: '📜', trend: 'Proven success' },
+        { label: 'Global Partners', value: stats.partners, color: 'yellow', icon: '🤝', trend: 'Active outreach' }
     ]
 
     const getStageColor = (stage) => {
         const colors = {
             'TOR Collection': 'blue',
-            'Bid Decision': 'yellow',
-            'Proposal Preparation': 'purple',
-            'Submission': 'green',
-            'Win': 'green',
-            'Loss': 'red'
+            'Under Review': 'yellow',
+            'Decision Pending': 'purple',
+            'Bid Preparation': 'blue',
+            'Submitted': 'green',
+            'Won': 'green',
+            'Lost': 'red'
         }
         return colors[stage] || 'gray'
     }
 
     if (loading) {
-        return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#718096' }}>Loading dashboard...</div>
+        return (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#94a3b8' }}>
+                <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 24, marginBottom: 12 }} className="animate-fade">🛰️</div>
+                    <div style={{ fontSize: 13, fontWeight: 500 }}>Initializing Command Center...</div>
+                </div>
+            </div>
+        )
     }
 
     return (
@@ -64,177 +71,225 @@ export default function Dashboard({ navigate }) {
             flexDirection: 'column',
             height: '100%',
             overflow: 'hidden',
-            color: '#e2e8f0'
+            color: '#f8fafc'
         }}>
             <PageHeader
                 icon="📊"
                 title="Business Development Command Center"
                 subtitle="Real-time monitoring of your strategic pipeline"
             >
-                <div style={{ display: 'flex', gap: 8 }}>
-                    <Btn onClick={fetchStats} variant="secondary" small>🔄 Refresh</Btn>
-                    <Btn onClick={() => navigate('opportunities')}>Tracker</Btn>
+                <div style={{ display: 'flex', gap: 12 }}>
+                    <Btn onClick={fetchStats} variant="secondary" small>🔄 Sync Data</Btn>
+                    <Btn onClick={() => navigate('opportunities')}>Open Tracker</Btn>
                 </div>
             </PageHeader>
 
-            <div style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
+            <div style={{ padding: '0 24px 24px', overflowY: 'auto', flex: 1 }}>
+                
                 {/* Metric Grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 20, marginBottom: 30 }}>
-                    {metrics.map(m => (
-                        <div key={m.label} style={{
-                            background: 'linear-gradient(145deg, #1a1f2e, #111827)',
-                            border: '1px solid #2d3748',
-                            borderRadius: 18,
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20, marginBottom: 32 }} className="animate-fade">
+                    {metrics.map((m, i) => (
+                        <div key={m.label} className="glass-card" style={{
                             padding: 24,
-                            position: 'relative',
-                            overflow: 'hidden',
-                            transition: 'transform 0.2s',
-                            cursor: 'pointer'
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-4px)'}
-                        onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
-                        >
-                            <div style={{ fontSize: 24, marginBottom: 16 }}>{m.icon}</div>
-                            <div style={{ fontSize: 13, color: '#9ca3af', marginBottom: 4, fontWeight: 500 }}>{m.label}</div>
-                            <div style={{ fontSize: 40, fontWeight: 700, color: '#fff', letterSpacing: '-1px' }}>{m.value}</div>
-                            <div style={{ marginTop: 12 }}>
-                                <Badge color={m.color}>Active Track</Badge>
+                            borderRadius: 20,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 12,
+                            animationDelay: `${i * 0.1}s`
+                        }}>
+                            <div style={{ 
+                                display: 'flex', 
+                                justifyContent: 'space-between', 
+                                alignItems: 'flex-start' 
+                            }}>
+                                <div style={{ 
+                                    width: 44, height: 44, 
+                                    background: `rgba(255,255,255,0.03)`,
+                                    border: '1px solid rgba(255,255,255,0.06)',
+                                    borderRadius: 12,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: 22
+                                }}>{m.icon}</div>
+                                <div style={{ fontSize: 11, color: '#48bb78', fontWeight: 700 }}>{m.trend}</div>
+                            </div>
+                            <div>
+                                <div style={{ fontSize: 13, color: '#94a3b8', fontWeight: 600, marginBottom: 2 }}>{m.label}</div>
+                                <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: '-1px' }}>{m.value}</div>
                             </div>
                         </div>
                     ))}
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 24, marginBottom: 24 }}>
-                    {/* Pipeline & Recent Activity */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1fr', gap: 24 }} className="animate-fade">
+                    
+                    {/* Left Column */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                        {/* Pipeline Stage Distribution */}
-                        <div style={{ background: '#111827', border: '1px solid #2d3748', borderRadius: 20, padding: 24 }}>
-                            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <span>🎯</span> Pipeline Stage Distribution
+                        
+                        {/* Pipeline Distribution */}
+                        <div className="glass-card" style={{ padding: 28, borderRadius: 24 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                                <div style={{ fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10 }}>
+                                    <span style={{ color: '#3b82f6' }}>🎯</span> Pipeline Distribution
+                                </div>
+                                <Badge color="blue">Global Views</Badge>
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                                {stages.length > 0 ? (
-                                    stages.map(s => {
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 40 }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                                    {stages.map(s => {
                                         const percentage = (s._count.id / stats.opportunities) * 100
                                         return (
                                             <div key={s.stage}>
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 6 }}>
-                                                    <span style={{ color: '#e2e8f0', fontWeight: 500 }}>{s.stage}</span>
-                                                    <span style={{ color: '#718096' }}>{s._count.id} ({Math.round(percentage)}%)</span>
+                                                    <span style={{ color: '#94a3b8', fontWeight: 600 }}>{s.stage}</span>
+                                                    <span style={{ fontWeight: 700 }}>{s._count.id}</span>
                                                 </div>
-                                                <div style={{ height: 8, background: '#1a1f2e', borderRadius: 4, overflow: 'hidden' }}>
+                                                <div style={{ height: 8, background: 'rgba(255,255,255,0.04)', borderRadius: 4, overflow: 'hidden' }}>
                                                     <div style={{ 
                                                         height: '100%', 
                                                         width: `${percentage}%`, 
-                                                        background: `var(--badge-${getStageColor(s.stage)})`,
-                                                        backgroundColor: getStageColor(s.stage) === 'blue' ? '#3b5bdb' : 
-                                                                        getStageColor(s.stage) === 'purple' ? '#805ad5' :
-                                                                        getStageColor(s.stage) === 'yellow' ? '#ecc94b' :
-                                                                        getStageColor(s.stage) === 'green' ? '#48bb78' : '#718096',
-                                                        borderRadius: 4,
-                                                        transition: 'width 1s ease-out'
+                                                        background: `linear-gradient(90deg, #3b82f6, #6366f1)`,
+                                                        borderRadius: 4
                                                     }} />
                                                 </div>
                                             </div>
                                         )
-                                    })
-                                ) : (
-                                    <div style={{ color: '#4a5568', fontSize: 13, textAlign: 'center', padding: 20 }}>No opportunity data available</div>
-                                )}
+                                    })}
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, position: 'relative' }}>
+                                    <div style={{ textAlign: 'center' }}>
+                                        <div style={{ fontSize: 44, fontWeight: 800, lineHeight: 1 }}>{stats.opportunities}</div>
+                                        <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>Active Bids</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
-                        {/* Recent Opportunities */}
-                        <div style={{ background: '#111827', border: '1px solid #2d3748', borderRadius: 20, padding: 24 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                                <div style={{ fontSize: 16, fontWeight: 600 }}>Recent Opportunities</div>
-                                <Btn onClick={() => navigate('opportunities')} variant="secondary" small>View All</Btn>
+                        {/* Recent Activity */}
+                        <div className="glass-card" style={{ padding: 28, borderRadius: 24 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                                <div style={{ fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10 }}>
+                                    <span style={{ color: '#f59e0b' }}>🕒</span> Recent Activity
+                                </div>
+                                <Btn variant="secondary" small onClick={() => navigate('opportunities')}>View History</Btn>
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                {recent.opportunities.map(opp => (
+                                {recent.opportunities.map((opp, i) => (
                                     <div key={opp.id} style={{ 
-                                        padding: 16, background: '#0f172a', borderRadius: 14, border: '1px solid #1f2937',
-                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-                                    }}>
-                                        <div>
-                                            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{opp.title}</div>
-                                            <div style={{ fontSize: 12, color: '#718096' }}>{opp.client || 'Unknown Client'}</div>
+                                        padding: '14px 20px', 
+                                        background: 'rgba(255,255,255,0.02)', 
+                                        borderRadius: 14, 
+                                        border: '1px solid rgba(255,255,255,0.04)',
+                                        display: 'flex', 
+                                        justifyContent: 'space-between', 
+                                        alignItems: 'center',
+                                        transition: 'all 0.2s ease',
+                                        cursor: 'pointer'
+                                    }}
+                                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
+                                    onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                                            <div style={{ fontSize: 20 }}>📁</div>
+                                            <div>
+                                                <div style={{ fontWeight: 700, fontSize: 14, color: '#f1f5f9' }}>{opp.title}</div>
+                                                <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{opp.client || 'Strategic Lead'}</div>
+                                            </div>
                                         </div>
                                         <Badge color={getStageColor(opp.stage)}>{opp.stage}</Badge>
                                     </div>
                                 ))}
-                                {recent.opportunities.length === 0 && <div style={{ color: '#4a5568', fontSize: 13 }}>No recent opportunities.</div>}
                             </div>
                         </div>
                     </div>
 
-                    {/* Sidebar: Recent Experts & Quick Actions */}
+                    {/* Right Column */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                        {/* Recent Experts */}
-                        <div style={{ background: '#111827', border: '1px solid #2d3748', borderRadius: 20, padding: 24 }}>
-                            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 18 }}>New Experts</div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        
+                        {/* New Experts */}
+                        <div className="glass-card" style={{ padding: 28, borderRadius: 24 }}>
+                            <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 24 }}>New Talent Added</div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                                 {recent.experts.map(exp => (
-                                    <div key={exp.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                    <div key={exp.id} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                                         <div style={{ 
-                                            width: 36, height: 36, borderRadius: '50%', background: '#3b5bdb22', 
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 
+                                            width: 44, height: 44, borderRadius: 14, 
+                                            background: 'linear-gradient(45deg, rgba(59, 130, 246, 0.1), rgba(99, 102, 241, 0.1))',
+                                            border: '1px solid rgba(59, 130, 246, 0.2)',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                                            fontSize: 20 
                                         }}>👤</div>
-                                        <div>
-                                            <div style={{ fontSize: 13, fontWeight: 600 }}>{exp.name}</div>
-                                            <div style={{ fontSize: 11, color: '#718096' }}>{exp.specialization}</div>
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ fontSize: 14, fontWeight: 700, color: '#f1f5f9' }}>{exp.name}</div>
+                                            <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{exp.specialization}</div>
                                         </div>
+                                        <Btn variant="secondary" small onClick={() => navigate('experts')}>Profile</Btn>
                                     </div>
                                 ))}
                             </div>
-                            <Btn onClick={() => navigate('experts')} variant="secondary" small style={{ marginTop: 18, width: '100%' }}>Database</Btn>
                         </div>
 
-                        {/* Quick Actions */}
-                        <div style={{ background: 'linear-gradient(180deg, #1a1f2e, #111827)', border: '1px solid #2d3748', borderRadius: 20, padding: 24 }}>
-                            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 20 }}>Quick Nav</div>
-                            <div style={{ display: 'grid', gap: 10 }}>
-                                <button 
-                                    onClick={() => navigate('pipeline')} 
-                                    style={{ 
-                                        background: '#1e2433', border: '1px solid #2d3748', color: '#e2e8f0', 
-                                        padding: '12px', borderRadius: 12, textAlign: 'left', fontSize: 13, cursor: 'pointer',
-                                        transition: 'background 0.2s'
-                                    }}
-                                    onMouseEnter={e => e.currentTarget.style.background = '#2d3748'}
-                                    onMouseLeave={e => e.currentTarget.style.background = '#1e2433'}
-                                >
-                                    🚀 Proposal Pipeline
-                                </button>
-                                <button 
-                                    onClick={() => navigate('partners')} 
-                                    style={{ 
-                                        background: '#1e2433', border: '1px solid #2d3748', color: '#e2e8f0', 
-                                        padding: '12px', borderRadius: 12, textAlign: 'left', fontSize: 13, cursor: 'pointer',
-                                        transition: 'background 0.2s'
-                                    }}
-                                    onMouseEnter={e => e.currentTarget.style.background = '#2d3748'}
-                                    onMouseLeave={e => e.currentTarget.style.background = '#1e2433'}
-                                >
-                                    🤝 Partner Intel
-                                </button>
-                                <button 
-                                    onClick={() => navigate('experiences')} 
-                                    style={{ 
-                                        background: '#1e2433', border: '1px solid #2d3748', color: '#e2e8f0', 
-                                        padding: '12px', borderRadius: 12, textAlign: 'left', fontSize: 13, cursor: 'pointer',
-                                        transition: 'background 0.2s'
-                                    }}
-                                    onMouseEnter={e => e.currentTarget.style.background = '#2d3748'}
-                                    onMouseLeave={e => e.currentTarget.style.background = '#1e2433'}
-                                >
-                                    📜 Track Record
-                                </button>
+                        {/* Direct Access */}
+                        <div style={{ 
+                            background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+                            border: '1px solid rgba(255,255,255,0.06)',
+                            borderRadius: 24,
+                            padding: 28,
+                            position: 'relative',
+                            overflow: 'hidden'
+                        }}>
+                            <div style={{ 
+                                position: 'absolute', top: -40, right: -40, width: 120, height: 120,
+                                background: 'radial-gradient(circle, rgba(59, 130, 246, 0.2) 0%, transparent 70%)',
+                                borderRadius: '50%'
+                            }} />
+                            <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 20 }}>Launch Modules</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                                {[
+                                    { id: 'pipeline', label: 'Pipeline', icon: '⚡' },
+                                    { id: 'partners', label: 'Partners', icon: '🤝' },
+                                    { id: 'analytics', label: 'Analytics', icon: '📊' },
+                                    { id: 'experiences', label: 'Reference', icon: '📜' }
+                                ].map(btn => (
+                                    <button 
+                                        key={btn.id}
+                                        onClick={() => navigate(btn.id)}
+                                        style={{ 
+                                            background: 'rgba(255,255,255,0.03)',
+                                            border: '1px solid rgba(255,255,255,0.05)',
+                                            color: '#f1f5f9',
+                                            padding: '16px',
+                                            borderRadius: 16,
+                                            fontSize: 13,
+                                            fontWeight: 600,
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            alignItems: 'center',
+                                            gap: 8,
+                                            transition: 'all 0.2s'
+                                        }}
+                                        className="module-button"
+                                    >
+                                        <span style={{ fontSize: 20 }}>{btn.icon}</span>
+                                        {btn.label}
+                                    </button>
+                                ))}
                             </div>
                         </div>
                     </div>
+
                 </div>
             </div>
+
+            <style jsx>{`
+                .module-button:hover {
+                    background: rgba(255,255,255,0.08) !important;
+                    border-color: rgba(59, 130, 246, 0.3) !important;
+                    transform: translateY(-2px);
+                }
+            `}</style>
         </div>
     )
-}
+}

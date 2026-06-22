@@ -39,6 +39,15 @@ model Opportunity {
   asanaTaskId         String? @db.VarChar(100)
   asanaTaskUrl        String? @db.VarChar(255)
 
+  // Competitive Analysis
+  competitiveScore    Int? @default(50)
+  winProbability      Int? @default(50)
+  knownCompetitors    String?
+  strengths           Json?
+  weaknesses          Json?
+  whyBid              String?
+  whyNotBid           String?
+
   @@map("opportunities")
 }
 
