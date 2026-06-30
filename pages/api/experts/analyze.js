@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import mammoth from "mammoth";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { geminiGenerate } from "../../../lib/gemini";
 
 export default async function handler(req, res) {
     if (req.method !== "POST") {
@@ -98,14 +98,6 @@ Example:
 ]
 `;
 
-        const genAI = new GoogleGenerativeAI(
-            GEMINI_API_KEY
-        );
-
-        const model = genAI.getGenerativeModel({
-            model: "gemini-3.5-flash"
-        });
-
         let fullPrompt = prompt;
 
         if (textContent) {
@@ -123,41 +115,14 @@ ${textContent.substring(0, 50000)}
         );
 
         let responseText;
-        let lastError;
-        const maxRetries = 5;
-
-        for (let i = 0; i < maxRetries; i++) {
-            try {
-                const result = await model.generateContent(
-                    fullPrompt
-                );
-                responseText = result.response.text();
-                if (responseText) break;
-            } catch (err) {
-                lastError = err;
-                const isTransient = err.status === 503 || err.status === 429 || 
-                                   err.message?.includes("503") || 
-                                   err.message?.includes("429") ||
-                                   err.message?.includes("high demand") ||
-                                   err.message?.includes("Service Unavailable");
-
-                if (isTransient && i < maxRetries - 1) {
-                    const delay = Math.pow(2, i) * 2000; // Increased base delay to 2s
-                    console.log(`Gemini API busy (attempt ${i + 1}/${maxRetries}). Retrying in ${delay}ms...`);
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                    continue;
-                }
-                
-                console.error(
-                    "Gemini API Error (Final Attempt):",
-                    err
-                );
-
-                return res.status(500).json({
-                    error: "Gemini API failure",
-                    details: err?.message || "Unknown Gemini error"
-                });
-            }
+        try {
+            responseText = await geminiGenerate(GEMINI_API_KEY, fullPrompt);
+        } catch (err) {
+            console.error("Gemini API Error:", err);
+            return res.status(500).json({
+                error: "Gemini API failure",
+                details: err?.message || "Unknown Gemini error"
+            });
         }
 
         if (!responseText) {

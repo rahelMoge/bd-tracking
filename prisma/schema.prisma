@@ -8,45 +8,40 @@ datasource db {
 }
 
 model Opportunity {
-  id              Int      @id @default(autoincrement())
-  title           String   @db.VarChar(255)
-  client          String?  @db.VarChar(255)
-  stage           String   @default("TOR Collection") @db.VarChar(50)
-  deadline        String?  @db.VarChar(20)
-  proposalType    String?  @db.VarChar(100)
-  serviceCategory String?  @db.VarChar(100)
-  strategicFit    String?  @db.VarChar(20)
-  bidDecision     String?  @db.VarChar(20)
-  sector          String?  @db.VarChar(100)
-  collectedBy     String?  @db.VarChar(100)
-  country         String?  @db.VarChar(100)
-  notes           String?
-  documentUrl     String?
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
-  aiSummary       String?
-  expertIds       Json?
-  experienceIds   Json?
-  
-  // Pipeline Checklist
-  expertIdentified    Boolean @default(false)
-  experienceSelected  Boolean @default(false)
-  techDrafted         Boolean @default(false)
-  financialPrepared   Boolean @default(false)
-  docsCompiled        Boolean @default(false)
-  submitted           Boolean @default(false)
-  
-  asanaTaskId         String? @db.VarChar(100)
-  asanaTaskUrl        String? @db.VarChar(255)
-
-  // Competitive Analysis
-  competitiveScore    Int? @default(50)
-  winProbability      Int? @default(50)
-  knownCompetitors    String?
-  strengths           Json?
-  weaknesses          Json?
-  whyBid              String?
-  whyNotBid           String?
+  id                 Int      @id @default(autoincrement())
+  title              String   @db.VarChar(255)
+  client             String?  @db.VarChar(255)
+  stage              String   @default("TOR Collection") @db.VarChar(50)
+  deadline           String?  @db.VarChar(20)
+  proposalType       String?  @db.VarChar(100)
+  serviceCategory    String?  @db.VarChar(100)
+  strategicFit       String?  @db.VarChar(20)
+  bidDecision        String?  @db.VarChar(20)
+  sector             String?  @db.VarChar(100)
+  collectedBy        String?  @db.VarChar(100)
+  country            String?  @db.VarChar(100)
+  notes              String?
+  documentUrl        String?
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+  aiSummary          String?
+  asanaTaskId        String?  @db.VarChar(100)
+  asanaTaskUrl       String?  @db.VarChar(255)
+  docsCompiled       Boolean  @default(false)
+  experienceIds      Json?
+  experienceSelected Boolean  @default(false)
+  expertIdentified   Boolean  @default(false)
+  expertIds          Json?
+  financialPrepared  Boolean  @default(false)
+  submitted          Boolean  @default(false)
+  techDrafted        Boolean  @default(false)
+  competitiveScore   Int?     @default(50)
+  knownCompetitors   String?
+  strengths          Json?
+  weaknesses         Json?
+  whyBid             String?
+  whyNotBid          String?
+  winProbability     Int?     @default(50)
 
   @@map("opportunities")
 }
@@ -100,13 +95,13 @@ model Partner {
   contactPerson    String?  @db.VarChar(255)
   phone            String?  @db.VarChar(50)
   sector           String?  @db.VarChar(100)
-  expertise        String?  @db.VarChar(255)
-  engagementReason String?  @db.VarChar(100)
   status           String?  @default("Contacted") @db.VarChar(50)
   notes            String?
-  opportunityId    Int?
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
+  engagementReason String?  @db.VarChar(100)
+  expertise        String?  @db.VarChar(255)
+  opportunityId    Int?
 
   @@map("partners")
 }

@@ -28,6 +28,9 @@ export default function AISummaryPanel({ fileUrl, summary, onSummaryGenerated, o
                 body: JSON.stringify({ fileUrl })
             })
             const data = await res.json()
+            if (res.status === 429) {
+                throw new Error('⏳ Gemini API rate limit reached. Please wait 30–60 seconds and try again.')
+            }
             if (!res.ok) throw new Error(data.error || 'Analysis failed')
             onSummaryGenerated(data.summary)
         } catch (err) {

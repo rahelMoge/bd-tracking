@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client"
-import { GoogleGenerativeAI } from "@google/generative-ai"
+import { geminiGenerate } from "../../../lib/gemini"
 
 const prisma = new PrismaClient()
 
@@ -22,8 +22,6 @@ export default async function handler(req, res) {
         const GEMINI_API_KEY = process.env.GEMINI_API_KEY
         if (!GEMINI_API_KEY) return res.status(500).json({ error: "Missing GEMINI_API_KEY" })
 
-        const genAI = new GoogleGenerativeAI(GEMINI_API_KEY)
-        const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" })
 
         const experienceList = experiences.map(e => ({
             id: e.id,
@@ -68,27 +66,14 @@ export default async function handler(req, res) {
         `
 
         let responseText;
-        const maxRetries = 5;
-
-        for (let i = 0; i < maxRetries; i++) {
-            try {
-                const result = await model.generateContent(prompt)
-                responseText = result.response.text()
-                if (responseText) break
-            } catch (err) {
-                const isTransient = err.status === 503 || err.status === 429 || 
-                                   err.message?.includes("503") || 
-                                   err.message?.includes("429") ||
-                                   err.message?.includes("high demand");
-
-                if (isTransient && i < maxRetries - 1) {
-                    const delay = Math.pow(2, i) * 2000;
-                    console.log(`Gemini API busy in experience matcher (attempt ${i + 1}/${maxRetries}). Retrying...`);
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                    continue;
-                }
-                throw err;
-            }
+        try {
+            responseText = await geminiGenerate(GEMINI_API_KEY, prompt)
+        } catch (err) {
+            console.error("Experience Match Gemini API Error:", err);
+            return res.status(500).json({
+                error: "Failed to match experiences via Gemini",
+                details: err.message
+            });
         }
 
         if (!responseText) throw new Error("No response from Gemini")
