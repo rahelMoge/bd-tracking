@@ -7,6 +7,7 @@ export default async function handler(req, res) {
             const data = await prisma.opportunity.findMany({
                 orderBy: { createdAt: 'desc' }
             })
+            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
             return res.status(200).json(data)
         }
 

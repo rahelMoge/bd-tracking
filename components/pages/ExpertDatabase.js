@@ -297,8 +297,32 @@ export default function ExpertDatabase() {
                                             </td>
                                             <td style={{ padding: 12 }}><Badge color="blue">{e.specialization}</Badge></td>
                                             <td style={{ padding: 12 }}>
-                                                <div style={{ display: 'flex', gap: 6 }}>
-                                                    {(e.documents || []).map((d, i) => <span key={i} onClick={() => openDoc(d)} style={{ cursor: 'pointer' }}>{fileIcon(d.name)}</span>)}
+                                                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }} onClick={ev => ev.stopPropagation()}>
+                                                    {(e.documents || []).length > 0 ? (
+                                                        (e.documents || []).map((d, i) => (
+                                                            <button
+                                                                key={i}
+                                                                onClick={() => openDoc(d)}
+                                                                style={{
+                                                                    background: 'rgba(59, 130, 246, 0.08)',
+                                                                    border: '1px solid rgba(59, 130, 246, 0.15)',
+                                                                    borderRadius: 6,
+                                                                    padding: '4px 8px',
+                                                                    color: '#7b9cff',
+                                                                    fontSize: 11,
+                                                                    fontWeight: 650,
+                                                                    cursor: 'pointer',
+                                                                    display: 'inline-flex',
+                                                                    alignItems: 'center',
+                                                                    gap: 4
+                                                                }}
+                                                            >
+                                                                {fileIcon(d.name)} {d.name.length > 20 ? d.name.substring(0, 20) + '...' : d.name}
+                                                            </button>
+                                                        ))
+                                                    ) : (
+                                                        <span style={{ color: '#4a5568', fontSize: 11 }}>No attached CV</span>
+                                                    )}
                                                 </div>
                                             </td>
                                             <td style={{ padding: 12, textAlign: 'right' }}>
@@ -326,8 +350,65 @@ export default function ExpertDatabase() {
                                     <Badge color={e.priorExperience === 'Yes' ? 'green' : 'gray'}>{e.priorExperience === 'Yes' ? 'Prior' : 'New'}</Badge>
                                 </div>
                                 {e.summary && <div style={{ fontSize: 12, color: '#a0aec0', marginBottom: 10, lineClamp: 2, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{e.summary}</div>}
-                                <div style={{ borderTop: '1px solid #2d3748', paddingTop: 8, fontSize: 11, color: '#4a5568' }}>
-                                    Documents: {(e.documents || []).length}
+                                <div style={{ 
+                                    borderTop: '1px solid rgba(255,255,255,0.06)', 
+                                    paddingTop: 10, 
+                                    marginTop: 6,
+                                    display: 'flex', 
+                                    flexDirection: 'column', 
+                                    gap: 6 
+                                }} onClick={ev => ev.stopPropagation()}>
+                                    <div style={{ fontSize: 10, fontWeight: 700, color: '#475569', letterSpacing: '0.05em' }}>ATTACHMENTS / CV LIST</div>
+                                    {(e.documents || []).length > 0 ? (
+                                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                            {(e.documents || []).map((doc, idx) => (
+                                                <button
+                                                    key={idx}
+                                                    onClick={() => openDoc(doc)}
+                                                    style={{
+                                                        background: 'rgba(59, 130, 246, 0.08)',
+                                                        border: '1px solid rgba(59, 130, 246, 0.2)',
+                                                        borderRadius: 6,
+                                                        color: '#7b9cff',
+                                                        padding: '4px 8px',
+                                                        fontSize: 11,
+                                                        fontWeight: 600,
+                                                        cursor: 'pointer',
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: 4,
+                                                        transition: 'all 0.2s'
+                                                    }}
+                                                    onMouseEnter={s => { s.currentTarget.style.background = 'rgba(59, 130, 246, 0.15)'; s.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.4)'; }}
+                                                    onMouseLeave={s => { s.currentTarget.style.background = 'rgba(59, 130, 246, 0.08)'; s.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.2)'; }}
+                                                >
+                                                    {fileIcon(doc.name)} {doc.name.length > 15 ? doc.name.substring(0, 15) + '...' : doc.name}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <button
+                                            onClick={() => setDetailExpert(e)}
+                                            style={{
+                                                background: 'rgba(255,255,255,0.03)',
+                                                border: '1px solid rgba(255,255,255,0.06)',
+                                                borderRadius: 6,
+                                                color: '#94a3b8',
+                                                padding: '4px 8px',
+                                                fontSize: 11,
+                                                fontWeight: 600,
+                                                cursor: 'pointer',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: 4,
+                                                width: 'fit-content'
+                                            }}
+                                            onMouseEnter={s => { s.currentTarget.style.background = 'rgba(255,255,255,0.06)'; s.currentTarget.style.color = '#fff'; }}
+                                            onMouseLeave={s => { s.currentTarget.style.background = 'rgba(255,255,255,0.03)'; s.currentTarget.style.color = '#94a3b8'; }}
+                                        >
+                                            📄 View Summary CV bio
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         ))}

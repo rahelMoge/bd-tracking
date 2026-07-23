@@ -7,9 +7,26 @@ export default async function handler(req, res) {
     if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" })
 
     try {
-        const { opportunityId, torSummary } = req.body
+        let { opportunityId, torSummary, opportunity } = req.body
 
-        if (!torSummary) return res.status(400).json({ error: "torSummary is required" })
+        if (!torSummary || Object.keys(torSummary).length === 0) {
+            const opp = opportunity || (opportunityId ? await prisma.opportunity.findUnique({ where: { id: Number(opportunityId) } }) : null);
+            if (opp) {
+                torSummary = {
+                    scopeOfWork: opp.notes || opp.title || "Consulting Services",
+                    requiredExperts: [{ 
+                        position: opp.title || "Expert", 
+                        keySkills: opp.sector || opp.serviceCategory || "Specialist" 
+                    }],
+                    requiredExperiences: [{ 
+                        sector: opp.sector || "General", 
+                        description: opp.notes || opp.title || "" 
+                    }]
+                };
+            } else {
+                return res.status(400).json({ error: "torSummary or opportunity details are required" })
+            }
+        }
 
         // 1. Fetch all experiences from database
         const experiences = await prisma.experience.findMany()
@@ -82,14 +99,15 @@ export default async function handler(req, res) {
         const matchData = JSON.parse(cleaned)
 
         // 3. Merge AI scores back with full experience data
-        const results = matchData.matches.map(m => {
+        const results = (matchData.matches || []).map(m => {
             const exp = experiences.find(e => e.id === m.id)
+            if (!exp) return null
             return {
                 ...exp,
                 relevanceScore: m.relevanceScore,
                 matchReasoning: m.matchReasoning
             }
-        }).sort((a, b) => b.relevanceScore - a.relevanceScore)
+        }).filter(Boolean).sort((a, b) => b.relevanceScore - a.relevanceScore)
 
         return res.status(200).json({
             experiences: results,

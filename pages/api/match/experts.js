@@ -17,10 +17,25 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { opportunityId, torSummary } = req.body;
+        let { opportunityId, torSummary, opportunity } = req.body;
 
-        if (!torSummary) {
-            return res.status(400).json({ error: "torSummary is required" });
+        if (!torSummary || Object.keys(torSummary).length === 0) {
+            const opp = opportunity || (opportunityId ? await prisma.opportunity.findUnique({ where: { id: Number(opportunityId) } }) : null);
+            if (opp) {
+                torSummary = {
+                    scopeOfWork: opp.notes || opp.title || "Consulting Services",
+                    requiredExperts: [{ 
+                        position: opp.title || "Expert", 
+                        keySkills: opp.sector || opp.serviceCategory || "Specialist" 
+                    }],
+                    requiredExperiences: [{ 
+                        sector: opp.sector || "General", 
+                        description: opp.notes || opp.title || "" 
+                    }]
+                };
+            } else {
+                return res.status(400).json({ error: "torSummary or opportunity details are required" });
+            }
         }
 
         // 1. Fetch experts

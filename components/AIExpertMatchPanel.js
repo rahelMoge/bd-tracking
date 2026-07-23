@@ -14,7 +14,8 @@ export default function AIExpertMatchPanel({ opportunity, torSummary, onClose, o
         try {
             const res = await axios.post('/api/match/experts', {
                 opportunityId: opportunity.id,
-                torSummary: torSummary
+                torSummary: torSummary,
+                opportunity: opportunity
             })
             setMatches(res.data.experts || [])
             setIdealProfile(res.data.idealProfile || '')
@@ -33,7 +34,8 @@ export default function AIExpertMatchPanel({ opportunity, torSummary, onClose, o
         if (!onSave) return
         setSaving(true)
         try {
-            await onSave(selectedIds)
+            const selectedData = matches.filter(m => selectedIds.includes(m.id))
+            await onSave(selectedIds, selectedData)
             onClose()
         } catch (err) {
             alert('Failed to save selections')

@@ -40,8 +40,10 @@ export default async function handler(req, res) {
             });
 
             if (!existing) {
+                console.warn(`⚠️ PUT /api/opportunities/${numId}: Record not found in DB. It may have been deleted.`);
                 return res.status(404).json({
-                    error: "Opportunity not found"
+                    error: "Opportunity not found",
+                    message: `No opportunity with id=${numId} exists. It may have been deleted.`
                 });
             }
 

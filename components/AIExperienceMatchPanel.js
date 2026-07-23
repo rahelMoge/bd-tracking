@@ -14,7 +14,8 @@ export default function AIExperienceMatchPanel({ opportunity, torSummary, onClos
         try {
             const res = await axios.post('/api/match/experiences', {
                 opportunityId: opportunity.id,
-                torSummary: torSummary
+                torSummary: torSummary,
+                opportunity: opportunity
             })
             setMatches(res.data.experiences || [])
             setIdealProfile(res.data.idealProfile || '')
@@ -33,7 +34,8 @@ export default function AIExperienceMatchPanel({ opportunity, torSummary, onClos
         if (!onSave) return
         setSaving(true)
         try {
-            await onSave(selectedIds)
+            const selectedData = matches.filter(m => selectedIds.includes(m.id))
+            await onSave(selectedIds, selectedData)
             onClose()
         } catch (err) {
             alert('Failed to save selections')
