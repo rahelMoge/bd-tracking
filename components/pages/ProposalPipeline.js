@@ -12,10 +12,15 @@ export default function ProposalPipeline({ navigate }) {
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        axios.get('/api/opportunities').then(r => {
-            setOpportunities(r.data)
-            setLoading(false)
-        })
+        axios.get('/api/opportunities')
+            .then(r => {
+                setOpportunities(r.data)
+                setLoading(false)
+            })
+            .catch(err => {
+                console.error('Error fetching opportunities:', err)
+                setLoading(false)
+            })
     }, [])
 
     const bids = opportunities.filter(o => o.bidDecision === 'BID')
@@ -31,7 +36,7 @@ export default function ProposalPipeline({ navigate }) {
                     <div style={{ fontSize: 22, fontWeight: 600, color: '#e2e8f0' }}>Proposal Pipeline</div>
                     <div style={{ fontSize: 12, color: '#718096' }}>{bids.length} active bids in progress</div>
                 </div>
-                <button onClick={() => axios.get('/api/opportunities').then(r => setOpportunities(r.data))} style={{ background: 'none', border: '1px solid #2d3748', borderRadius: 7, padding: '7px 10px', color: '#a0aec0', cursor: 'pointer', fontSize: 14 }}>↻</button>
+                <button onClick={() => axios.get('/api/opportunities').then(r => setOpportunities(r.data)).catch(console.error)} style={{ background: 'none', border: '1px solid #2d3748', borderRadius: 7, padding: '7px 10px', color: '#a0aec0', cursor: 'pointer', fontSize: 14 }}>↻</button>
             </div>
 
             <div style={{ padding: '12px 24px 0', borderBottom: '1px solid #2d3748', display: 'flex', gap: 6, flexShrink: 0 }}>

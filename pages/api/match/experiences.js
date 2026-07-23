@@ -3,6 +3,33 @@ import { geminiGenerate } from "../../../lib/gemini"
 
 const prisma = new PrismaClient()
 
+function parseCleanJson(text) {
+    if (!text) throw new Error("Empty response from AI");
+    let cleaned = text.replace(/```json/gi, "").replace(/```/g, "").trim();
+    const firstBrace = cleaned.indexOf("{");
+    const lastBrace = cleaned.lastIndexOf("}");
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
+        cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+    }
+    cleaned = cleaned.replace(/,\s*([}\]])/g, "$1");
+    try {
+        return JSON.parse(cleaned);
+    } catch (e1) {
+        let repaired = cleaned.replace(/[\u0000-\u001F\u007F-\u009F]/g, " ").replace(/,\s*([}\]])/g, "$1");
+        const opens = (repaired.match(/\{/g) || []).length;
+        const closes = (repaired.match(/\}/g) || []).length;
+        for (let i = 0; i < opens - closes; i++) repaired += "}";
+        const openSq = (repaired.match(/\[/g) || []).length;
+        const closeSq = (repaired.match(/\]/g) || []).length;
+        for (let i = 0; i < openSq - closeSq; i++) repaired += "]";
+        try {
+            return JSON.parse(repaired);
+        } catch (e2) {
+            throw new Error(`JSON parse error: ${e1.message}`);
+        }
+    }
+}
+
 export default async function handler(req, res) {
     if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" })
 
@@ -95,8 +122,7 @@ export default async function handler(req, res) {
 
         if (!responseText) throw new Error("No response from Gemini")
 
-        let cleaned = responseText.trim().replace(/```json/g, "").replace(/```/g, "").trim()
-        const matchData = JSON.parse(cleaned)
+        let matchData = parseCleanJson(responseText)
 
         // 3. Merge AI scores back with full experience data
         const results = (matchData.matches || []).map(m => {

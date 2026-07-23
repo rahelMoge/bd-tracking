@@ -7,6 +7,51 @@ const require = createRequire(import.meta.url);
 const mammoth = require("mammoth");
 const pdfParse = require("pdf-parse");
 
+function parseCleanJson(text) {
+    if (!text) throw new Error("Empty response from AI");
+    
+    let cleaned = text
+        .replace(/```json/gi, "")
+        .replace(/```/g, "")
+        .trim();
+
+    const firstBrace = cleaned.indexOf("{");
+    const lastBrace = cleaned.lastIndexOf("}");
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
+        cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+    }
+
+    // Fix trailing commas before closing braces/brackets
+    cleaned = cleaned.replace(/,\s*([}\]])/g, "$1");
+
+    try {
+        return JSON.parse(cleaned);
+    } catch (e1) {
+        // Strip control characters and retry
+        let repaired = cleaned
+            .replace(/[\u0000-\u001F\u007F-\u009F]/g, " ")
+            .replace(/,\s*([}\]])/g, "$1");
+
+        const opens = (repaired.match(/\{/g) || []).length;
+        const closes = (repaired.match(/\}/g) || []).length;
+        for (let i = 0; i < opens - closes; i++) {
+            repaired += "}";
+        }
+
+        const openSq = (repaired.match(/\[/g) || []).length;
+        const closeSq = (repaired.match(/\]/g) || []).length;
+        for (let i = 0; i < openSq - closeSq; i++) {
+            repaired += "]";
+        }
+
+        try {
+            return JSON.parse(repaired);
+        } catch (e2) {
+            throw new Error(`JSON parse error: ${e1.message}`);
+        }
+    }
+}
+
 export default async function handler(req, res) {
     if (req.method !== "POST") {
         return res.status(405).json({ error: "Method not allowed" });
@@ -95,12 +140,17 @@ ${textContent.substring(0, 50000)}`;
         try {
             const responseText = await geminiGenerate(GEMINI_API_KEY, prompt);
 
-            const cleaned = responseText
-                .replace(/```json/g, "")
-                .replace(/```/g, "")
-                .trim();
+            let summary;
+            try {
+                summary = parseCleanJson(responseText);
+            } catch (parseErr) {
+                console.error("JSON repair parse error:", parseErr.message, "Raw text:", responseText.substring(0, 300));
+                return res.status(500).json({
+                    error: "Invalid AI response format. Please retry.",
+                    details: parseErr.message,
+                });
+            }
 
-            const summary = JSON.parse(cleaned);
             return res.status(200).json({ success: true, summary });
         } catch (err) {
             if (err.isRateLimit) {

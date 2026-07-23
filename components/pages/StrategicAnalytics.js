@@ -52,10 +52,15 @@ export default function StrategicAnalytics() {
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        axios.get('/api/analytics').then(r => {
-            setData(r.data)
-            setLoading(false)
-        })
+        axios.get('/api/analytics')
+            .then(r => {
+                setData(r.data)
+                setLoading(false)
+            })
+            .catch(err => {
+                console.error('Error fetching analytics:', err)
+                setLoading(false)
+            })
     }, [])
 
     if (loading) return (

@@ -117,6 +117,9 @@ export default function ExpertDatabase() {
         axios.get('/api/experts').then(r => {
             setExperts(r.data)
             setLoading(false)
+        }).catch(err => {
+            console.error('Error fetching experts:', err)
+            setLoading(false)
         })
     }
 

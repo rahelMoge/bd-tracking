@@ -598,6 +598,7 @@ export default function OpportunityTracker() {
                     experts={allExperts}
                     experiences={allExperiences}
                     onClose={() => setBriefingOpportunityId(null)}
+                    onUpdate={fetchData}
                 />
             )}
 

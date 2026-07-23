@@ -18,7 +18,7 @@ export default function FirmExperiences() {
     const [loading, setLoading] = useState(true)
 
     useEffect(() => { fetchData() }, [])
-    const fetchData = () => axios.get('/api/experiences').then(r => { setExperiences(r.data); setLoading(false) })
+    const fetchData = () => axios.get('/api/experiences').then(r => { setExperiences(r.data); setLoading(false) }).catch(err => { console.error('Error fetching experiences:', err); setLoading(false) })
 
     const filtered = experiences.filter(e => {
         if (search && !e.title?.toLowerCase().includes(search.toLowerCase()) && !e.client?.toLowerCase().includes(search.toLowerCase())) return false

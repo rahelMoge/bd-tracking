@@ -24,11 +24,13 @@ export default function Dashboard({ navigate }) {
         setLoading(true)
         try {
             const res = await axios.get('/api/stats')
-            setStats(res.data.stats)
-            setRecent(res.data.recent)
-            setStages(res.data.stages)
+            if (res.data) {
+                if (res.data.stats) setStats(res.data.stats)
+                if (res.data.recent) setRecent(res.data.recent)
+                if (res.data.stages) setStages(res.data.stages)
+            }
         } catch (error) {
-            console.error('Error fetching dashboard stats:', error)
+            console.error('Error fetching dashboard stats:', error?.message || error)
         } finally {
             setLoading(false)
         }
