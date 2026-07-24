@@ -1,7 +1,5 @@
-import { PrismaClient } from "@prisma/client"
+import prisma from "../../../lib/prisma"
 import { geminiGenerate } from "../../../lib/gemini"
-
-const prisma = new PrismaClient()
 
 function parseCleanJson(text) {
     if (!text) throw new Error("Empty response from AI");
