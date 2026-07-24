@@ -64,25 +64,45 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: "fileUrl is required" });
         }
 
-        const safePath = fileUrl.startsWith("/") ? fileUrl.slice(1) : fileUrl;
-        const filePath = path.join(process.cwd(), "public", safePath);
+        // Fetch the file directly from Vercel Blob (or any HTTPS URL)
+        let fileBuffer;
+        let fileName;
+        let ext;
 
-        console.log("File path:", filePath);
-
-        if (!fs.existsSync(filePath)) {
-            return res.status(404).json({ error: "File not found", filePath });
+        if (fileUrl.startsWith("http://") || fileUrl.startsWith("https://")) {
+            // File is stored in Vercel Blob — fetch it over HTTP
+            const fetchRes = await fetch(fileUrl, {
+                headers: {
+                    Authorization: `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}`,
+                },
+            });
+            if (!fetchRes.ok) {
+                return res.status(404).json({ error: "File not found", fileUrl });
+            }
+            const arrayBuffer = await fetchRes.arrayBuffer();
+            fileBuffer = Buffer.from(arrayBuffer);
+            // Derive filename from URL
+            const urlPath = new URL(fileUrl).pathname;
+            fileName = urlPath.split("/").pop() || "upload";
+            ext = "." + fileName.split(".").pop().toLowerCase();
+        } else {
+            // Legacy local path fallback
+            const safePath = fileUrl.startsWith("/") ? fileUrl.slice(1) : fileUrl;
+            const filePath = path.join(process.cwd(), "public", safePath);
+            if (!fs.existsSync(filePath)) {
+                return res.status(404).json({ error: "File not found", filePath });
+            }
+            fileBuffer = fs.readFileSync(filePath);
+            fileName = path.basename(filePath);
+            ext = path.extname(fileName).toLowerCase();
         }
 
+        // ✅ Extract text from all supported file types
         const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
         if (!GEMINI_API_KEY) {
             return res.status(500).json({ error: "Missing GEMINI_API_KEY" });
         }
 
-        const fileBuffer = fs.readFileSync(filePath);
-        const fileName = path.basename(filePath);
-        const ext = path.extname(fileName).toLowerCase();
-
-        // ✅ Extract text from all supported file types
         let textContent = "";
 
         if (ext === ".txt" || ext === ".csv") {
