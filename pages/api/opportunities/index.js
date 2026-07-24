@@ -1,12 +1,12 @@
-import prisma from '../../../lib/prisma'
+import prisma, { withDbRetry } from '../../../lib/prisma'
 
 export default async function handler(req, res) {
     try {
         // GET all opportunities
         if (req.method === 'GET') {
-            const data = await prisma.opportunity.findMany({
+            const data = await withDbRetry(p => p.opportunity.findMany({
                 orderBy: { createdAt: 'desc' }
-            })
+            }))
             res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
             return res.status(200).json(data)
         }
@@ -15,7 +15,6 @@ export default async function handler(req, res) {
         if (req.method === 'POST') {
             const body = req.body
 
-            // EXTRACT ONLY VALID FIELDS - ignore extra stuff like fileName/fileUrl if sent by mistake
             const cleanData = {
                 title: body.title || '',
                 client: body.client?.trim() || null,
@@ -29,22 +28,20 @@ export default async function handler(req, res) {
                 collectedBy: body.collectedBy?.trim() || null,
                 country: body.country?.trim() || null,
                 notes: body.notes?.trim() || null,
-                // Map fileUrl/fileName to documentUrl - THIS IS THE FIX
                 documentUrl: body.documentUrl || body.fileUrl || null,
                 aiSummary: body.aiSummary || null
             }
 
-            // Validation
             if (!cleanData.title.trim()) {
                 return res.status(400).json({
                     error: 'Title is required',
-                    receivedFields: Object.keys(body) // Debug help
+                    receivedFields: Object.keys(body)
                 })
             }
 
-            const item = await prisma.opportunity.create({
+            const item = await withDbRetry(p => p.opportunity.create({
                 data: cleanData
-            })
+            }))
 
             console.log('✅ Created ID:', item.id)
             return res.status(201).json(item)
@@ -54,7 +51,6 @@ export default async function handler(req, res) {
 
     } catch (error) {
         console.error('🔥 Error:', error.message)
-        console.error('Full:', error)
         return res.status(500).json({ error: error.message })
     }
 }

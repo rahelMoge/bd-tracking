@@ -70,21 +70,30 @@ export default function OpportunityTracker() {
 
     useEffect(() => { fetchData() }, [])
 
-    const fetchData = () => {
+    const fetchData = async (retryCount = 0) => {
         setLoading(true)
-        Promise.all([
-            axios.get('/api/opportunities', { params: { _t: Date.now() } }),
-            axios.get('/api/experts', { params: { _t: Date.now() } }),
-            axios.get('/api/experiences', { params: { _t: Date.now() } })
-        ]).then(([oppRes, expRes, expeRes]) => {
-            setOpportunities(oppRes.data || [])
-            setAllExperts(expRes.data || [])
-            setAllExperiences(expeRes.data || [])
-            setLoading(false)
-        }).catch((err) => {
+        try {
+            const [oppRes, expRes, expeRes] = await Promise.all([
+                axios.get('/api/opportunities', { params: { _t: Date.now() } }).catch(e => ({ error: e })),
+                axios.get('/api/experts', { params: { _t: Date.now() } }).catch(e => ({ error: e })),
+                axios.get('/api/experiences', { params: { _t: Date.now() } }).catch(e => ({ error: e }))
+            ])
+
+            const hasError = oppRes.error || expRes.error || expeRes.error
+            if (hasError && retryCount < 2) {
+                console.warn(`⚠️ Transient DB connection delay, retrying fetch (${retryCount + 1}/2)...`)
+                setTimeout(() => fetchData(retryCount + 1), 1200)
+                return
+            }
+
+            if (!oppRes.error) setOpportunities(oppRes.data || [])
+            if (!expRes.error) setAllExperts(expRes.data || [])
+            if (!expeRes.error) setAllExperiences(expeRes.data || [])
+        } catch (err) {
             console.error('FetchData Error:', err)
+        } finally {
             setLoading(false)
-        })
+        }
     }
 
     const filtered = opportunities.filter(o => {
