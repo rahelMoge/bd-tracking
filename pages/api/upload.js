@@ -34,7 +34,7 @@ export default async function handler(req, res) {
         const fileBuffer = buffer.slice(start, end)
 
         const blob = await put(safeName, fileBuffer, {
-            access: 'public',
+            access: 'private',
             addRandomSuffix: false,
         })
 
